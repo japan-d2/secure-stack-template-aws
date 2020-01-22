@@ -56,9 +56,9 @@ TBD.
 
 IAMロールを作成した場合は、原則としてロールのOutputは3点をExportする
 
-> ロール名 : !Ref \[Role\]
-> ロールARN : !GetAtt \[Role\].Arn
-. ロールID : !GetAtt \[Role\].RoleId
+> ロール名 : !Ref \[Role\]  
+> ロールARN : !GetAtt \[Role\].Arn  
+> ロールID : !GetAtt \[Role\].RoleId
 
 ## Requirements
 
