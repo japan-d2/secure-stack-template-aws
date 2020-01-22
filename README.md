@@ -44,21 +44,27 @@ TBD.
 
 リソースの名前には可能な限り Environment 属性を追加する。
 
-> \[prod\].\[resource-name\]
+```
+[prod].[resource-name]
+```
 
 ### Outputs
 
 出力パラメータはコロンでセクションを区切る。
 
-> \[prod\]:\[resource-name\]:arn
+```
+[prod]:[resource-name]:arn
+```
 
 ### Outputs - IAM Role
 
 IAMロールを作成した場合は、原則としてロールのOutputは3点をExportする
 
-> ロール名 : !Ref \[Role\]
-> ロールARN : !GetAtt \[Role\].Arn
-. ロールID : !GetAtt \[Role\].RoleId
+| 種別      | Key                | Value                   |
+|-----------|--------------------|-------------------------|
+| ロール名  | `"[Role]RoleName"` | `!Ref [Role]`           |
+| ロールARN | `"[Role]RoleArn"`  | `!GetAtt [Role].Arn`    |
+| ロールID  | `"[Role]RoleId"`   | `!GetAtt [Role].RoleId` |
 
 ## Requirements
 
