@@ -60,12 +60,11 @@ TBD.
 
 IAMロールを作成した場合は、原則としてロールのOutputは3点をExportする
 
-| 種別      | Value                   |
-|-----------|-------------------------|
-| ロール名  | `!Ref [Role]`           |
-| ロールARN | `!GetAtt [Role].Arn`    |
-| ロールID  | `!GetAtt [Role].RoleId` |
-
+| 種別      | Key                | Value                   |
+|-----------|--------------------|-------------------------|
+| ロール名  | `"[Role]RoleName"` | `!Ref [Role]`           |
+| ロールARN | `"[Role]RoleArn"`  | `!GetAtt [Role].Arn`    |
+| ロールID  | `"[Role]RoleId"`   | `!GetAtt [Role].RoleId` |
 
 ## Requirements
 
