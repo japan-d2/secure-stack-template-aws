@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - VPC Subnet Creation Template
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - Environment
+  Environment:
+    Description: Environment Type
+    Type: String
+    Default: eval
+    AllowedValues:
+      - prod
+      - mirror
+      - stage
+      - test
+      - develop
+      - eval
+      - onetime
+
+  NetworkName:
+    Description: VPC Network Name
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "[a-zA-Z0-9\\_\\-\\.\\ \\=\\,\\.\\:\\/\\@]+"
+
+  SubnetName:
+    Description: Subnet Network Name
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "[a-zA-Z0-9\\_\\-\\.\\ \\=\\,\\.\\:\\/\\@]+"
+  
+  # ---------------------------- Parameters - VPC Network
+  VPCID:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+
+  SubnetNetworkCidrBlock:
+    Description: Subnet Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  SubnetNetworkCidrBlockIPv6:
+    Description: Subnet Network IPv6 CIDR Block
+    Type: String
+    MinLength: 0
+
+  SubnetAZ:
+    Description: Create Subnet Available Zone Name
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  # ---------------------------- Parameters - VPC Services
+  EnableIPv6Subnet:
+    Description: "Enable IPv6 Address"
+    Type: String
+    Default: No
+    AllowedValues:
+      - No
+
+# ---------------------------- Conditions
+Conditions:
+  CreateOfIPv6Subnet: !Equals [!Ref EnableIPv6Subnet, Yes]
+
+# ---------------------------- Metadata
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Environment Settings"
+        Parameters: 
+          - Environment
+          - NetworkName
+          - SubnetName
+
+      - 
+        Label: 
+          default: "VPC Settings"
+        Parameters: 
+          - VPCID
+          - SubnetNetworkCidrBlock
+          - SubnetNetworkCidrBlockIPv6
+          - SubnetAZ
+
+      - 
+        Label: 
+          default: "VPC Support Services"
+        Parameters:
+          - EnableIPv6Subnet
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - VPC Network
+  VPCSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCID
+      CidrBlock: !Ref SubnetNetworkCidrBlock
+      AvailabilityZone: !Ref SubnetAZ
+      Ipv6CidrBlock:
+        Fn::If:
+        - CreateOfIPv6Subnet
+        - !Ref SubnetNetworkCidrBlockIPv6
+        - !Ref AWS::NoValue
+      AssignIpv6AddressOnCreation:
+        Fn::If:
+        - CreateOfIPv6Subnet
+        - !Ref SubnetNetworkCidrBlockIPv6
+        - !Ref AWS::NoValue
+      MapPublicIpOnLaunch:
+        Fn::If:
+        - CreateOfIPv6Subnet
+        - false
+        - !Ref AWS::NoValue
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.${SubnetName}.${SubnetAZ}"
+
+#---------------------------- Output
+Outputs:
+  SubnetId:
+    Description: VPC Subnet ID
+    Value: !Ref VPCSubnet
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:${SubnetName}:subnet:id"
+  SubnetAZ:
+    Description: VPC Subnet Availability Zone
+    Value: !GetAtt VPCSubnet.AvailabilityZone
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:${SubnetName}:subnet:az"

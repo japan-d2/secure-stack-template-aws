@@ -1,0 +1,162 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fast Track - Elastic Load Balancer Provisioning Template
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Load Balancer Settings"
+        Parameters:
+          - ElbName
+          - ElbScheme
+          - ElbSecurityGroupId
+          - ElbSubnetId1
+          - ElbSubnetId2
+          - ElbType
+      - Label:
+          default: "Target Group Settings"
+        Parameters:
+          - VpcId
+          - TargetGroupName
+          - TargetPort
+          - TargetProtocol
+          - TargetType
+      - Label:
+          default: "Listener Settings"
+        Parameters:
+          - ListenPort
+          - ListenProtocol
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - Load Balancer
+  ElbName:
+    Description: The name of the load balancer.
+    Type: String
+    MaxLength: 32
+    ConstraintDescription: This name must be unique per region per account, can have a maximum of 32 characters, must contain only alphanumeric characters or hyphens, must not begin or end with a hyphen, and must not begin with "internal-".
+  ElbScheme:
+    Description: The scheme of the load balancer.(internal or internet-facing)
+    Type: String
+    Default: internet-facing
+    AllowedValues:
+      - internet-facing
+      - internal
+  ElbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  ElbSubnetId1:
+    Description : The IDs of the subnets.
+    Type : AWS::EC2::Subnet::Id
+  ElbSubnetId2:
+    Description : The IDs of the subnets.
+    Type : AWS::EC2::Subnet::Id
+  ElbType:
+    Description: The type of load balancer.
+    Type: String
+    Default: application
+    AllowedValues:
+      - application
+      - network
+
+  # ---------------------------- Parameters - Target Group
+  VpcId:
+    Description : The identifier of the virtual private cloud (VPC).
+    Type: AWS::EC2::VPC::Id
+  TargetGroupName:
+    Description : The name of the target group.
+    Type: String
+    MaxLength: 32
+    ConstraintDescription: This name must be unique per region per account, can have a maximum of 32 characters, must contain only alphanumeric characters or hyphens, and must not begin or end with a hyphen.
+  TargetPort:
+    Description: The port on which the targets receive traffic.
+    Type: Number
+    MinValue: 1
+    MaxValue: 65535
+    Default: 443
+  TargetProtocol:
+    Description : The protocol to use for routing traffic to the targets.
+    Type: String
+    Default: HTTPS
+    AllowedValues:
+      - HTTP
+      - HTTPS
+      - TCP
+      - TCP_UDP
+      - TLS
+      - UDP
+  TargetType:
+    Description: The type of target that you must specify when registering targets with this target group.
+    Type: String
+    Default: instance
+    AllowedValues:
+      - instance
+      - ip
+      - lambda
+
+  # ---------------------------- Parameters - Listener
+  ListenPort:
+    Description: The port on which the targets receive traffic.
+    Type: Number
+    MinValue: 1
+    MaxValue: 65535
+    Default: 443
+  ListenProtocol:
+    Description : The protocol to use for routing traffic to the targets.
+    Type: String
+    Default: HTTPS
+    AllowedValues:
+      - HTTP
+      - HTTPS
+      - TCP
+      - TCP_UDP
+      - TLS
+      - UDP
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - Load Balancer
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref ElbName
+      Scheme: !Ref ElbScheme
+      SecurityGroups:
+        - !Ref ElbSecurityGroupId
+      Subnets:
+        - !Ref ElbSubnetId1
+        - !Ref ElbSubnetId2
+      Type: !Ref ElbType
+      Tags:
+        - Key: Name
+          Value: !Ref ElbName
+
+  #---------------------------- Resources - Target Group
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      Name: !Ref TargetGroupName
+      Port: !Ref TargetPort
+      Protocol: !Ref TargetProtocol
+      TargetType: !Ref TargetType
+
+  #---------------------------- Resources - Listener
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: !Ref ListenPort
+      Protocol: !Ref ListenProtocol
+
+#---------------------------- Output
+Outputs:
+  LoadBalancerArn:
+    Description: Load Balancer ARN
+    Value: !Ref LoadBalancer
+  TargetGroupArn:
+    Description: Target Group ARN
+    Value: !Ref TargetGroup

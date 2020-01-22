@@ -1,0 +1,215 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - AWS Backup Policy Template
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "AWS Backup Settings"
+        Parameters:
+          - BackupHour
+          - DeleteAfterDays
+          - BackupTagKey
+          - BackupTagValue
+          - BackupPlanName
+          - BackupVaultTagValue
+
+# ---------------------------- Parameters
+Parameters:
+  Environment:
+    Description: Environment Type
+    Type: String
+    Default: eval
+    AllowedValues:
+      - prod
+      - mirror
+      - stage
+      - test
+      - develop
+      - eval
+      - onetime
+  BackupHour:
+    Type: Number
+    Default: 5
+    Description: Time is specified in UTC.
+  DeleteAfterDays:
+    Type: Number
+    Default: 10
+    Description: Specify the number of generations to save
+  BackupTagKey:
+    Type: String
+    Default: DLM
+    Description: Backup target tag key
+  BackupTagValue:
+    Type: String
+    Default: true
+    Description: Backup target tag Value
+  BackupPlanName:
+    Type: String
+    Default: EbsDailyBackupPlan
+    Description: Backup Plan Name
+  BackupVaultTagValue:
+    Type: String
+    Default: Daily
+    Description: Backup Vault Tags Value
+
+#---------------------------- Resources
+Resources:
+  BackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Ref BackupPlanName
+        BackupPlanRule:
+          - RuleName: !Sub ${BackupPlanName}-Rule
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: !Sub "cron(0 ${BackupHour} ? * * *)"
+            StartWindowMinutes: 60
+            Lifecycle:
+              DeleteAfterDays: !Ref DeleteAfterDays
+
+  BackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: !Sub ${BackupPlanName}-Selection
+        IamRoleArn: !GetAtt AWSBackupServiceRoleForEBSBackup.Arn
+        ListOfTags:
+          - ConditionKey: !Ref BackupTagKey
+            ConditionType: "STRINGEQUALS"
+            ConditionValue: !Ref BackupTagValue
+    DependsOn: AWSBackupServicePolicyForEBSBackup
+
+  BackupVault:
+    Type: AWS::Backup::BackupVault
+    Properties:
+      BackupVaultName: !Sub ${BackupPlanName}-Vault
+      BackupVaultTags: { BackupInterval : !Ref BackupVaultTagValue }
+
+  AWSBackupServiceRoleForEBSBackup:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${BackupPlanName}-Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: "sts:AssumeRole"
+          Effect: "Allow"
+          Principal:
+            Service: backup.amazonaws.com
+      Path: "/service-role/"
+
+  AWSBackupServicePolicyForEBSBackup:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${BackupPlanName}-Backup-Policy
+      Roles:
+        - !Ref AWSBackupServiceRoleForEBSBackup
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateEC2TagsAndDeleteSnapshot
+            Effect: Allow
+            Action:
+              - 'ec2:CreateTags'
+              - 'ec2:DeleteSnapshot'
+            Resource:
+              !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:snapshot/*
+          - Sid: DescribeEC2SnapshotsAndTags
+            Effect: Allow
+            Action:
+              - 'ec2:DescribeSnapshots'
+              - 'ec2:DescribeTags'
+            Resource: '*'
+          - Sid: OperationSnapshotAndVolumes
+            Effect: Allow
+            Action:
+              - 'ec2:CreateSnapshot'
+              - 'ec2:DeleteSnapshot'
+              - 'ec2:DescribeVolumes'
+              - 'ec2:DescribeSnapshots'
+            Resource:
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:snapshot/*
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/*
+          - Sid: DescribeKMSKey
+            Effect: Allow
+            Action:
+              - 'kms:DescribeKey'
+            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+          - Sid: AllowCreateGrant
+            Effect: Allow
+            Action:
+              - 'kms:CreateGrant'
+            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+          - Sid: GetResourcesTags
+            Effect: Allow
+            Action:
+              - 'tag:GetResources'
+            Resource: '*'
+
+  AWSBackupServicePolicyForEBSRestore:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${BackupPlanName}-Restore-Policy
+      Roles:
+        - !Ref AWSBackupServiceRoleForEBSBackup
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CreateAndDeleteVolume
+            Effect: Allow
+            Action:
+              - 'ec2:CreateVolume'
+              - 'ec2:DeleteVolume'
+            Resource:
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:snapshot/*
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/*
+          - Sid: DescribeEC2SnapshotsAndVolumes
+            Effect: Allow
+            Action:
+              - 'ec2:DescribeSnapshots'
+              - 'ec2:DescribeVolumes'
+            Resource:
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:snapshot/*
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/*
+          - Sid: DescribeKMSKeys
+            Effect: Allow
+            Action:
+              - 'kms:DescribeKey'
+            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+          - Sid: AllowcryptKeys
+            Effect: Allow
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:Encrypt'
+              - 'kms:GenerateDataKey'
+              - 'kms:ReEncryptTo'
+              - 'kms:ReEncryptFrom'
+            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+            Condition:
+              StringLike:
+                kms:ViaService: ec2.*.amazonaws.com
+          - Sid: AllowCreateGrant
+            Effect: Allow
+            Action:
+              - 'kms:CreateGrant'
+            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+
+#---------------------------- Output
+Outputs:
+  OutputsTags:
+    Value: !Sub '{ "${BackupTagKey}" : "${BackupTagValue}" }'
+    Export:
+      Name: !Sub ${Environment}:${BackupPlanName}:backupplan:tags
+  BuckupPlanName:
+    Value: !Ref BackupPlanName
+    Export:
+      Name: !Sub ${Environment}:${BackupPlanName}:backupplan:name

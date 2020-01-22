@@ -1,0 +1,1078 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - VPC Security Group Template
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - VPC Network
+  VPCID:
+    Description: VPC ID
+    Type: String
+    AllowedPattern: "vpc-([a-zA-Z0-9])+"
+  LocalSegmentCidr:
+    Description: VPC Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  PublicSegmentCidr:
+    Description: VPC Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    Default: ""
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  CorpNetworkCidr:
+    Description: Corporate Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  CorporateInternetOutboundAddress:
+    Description: Corporate Internet Outbound IPv4 Address (0.0.0.0/32)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+# ---------------------------- Metadata
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+    - 
+        Label: 
+          default: "VPC Settings"
+        Parameters:
+          - VPCID
+          - LocalSegmentCidr
+          - CorpNetworkCidr
+          - CorporateInternetOutboundAddress
+
+# ---------------------------- Conditions
+Conditions:
+  IsPublic: !Not [!Equals [!Ref PublicSegmentCidr, ""]]
+
+# ---------------------------- Mappings
+Mappings:
+  AWSPrefix:
+    "ap-northeast-1":
+      S3: "pl-61a54008"
+    "ap-northeast-2":
+      S3: "pl-78a54011"
+    "ap-northeast-3":
+      S3: ""
+    "ap-south-1":
+      S3: "pl-78a54011"
+    "ap-southeast-1":
+      S3: "pl-6fa54006"
+    "ap-southeast-2":
+      S3: "pl-6ca54005"
+    "ca-central-1":
+      S3: "pl-7da54014"
+    "eu-central-1":
+      S3: "pl-6ea54007"
+    "eu-north-1":
+      S3: "pl-c3aa4faa"
+    "eu-west-1":
+      S3: "pl-6da54004"
+    "eu-west-2":
+      S3: "pl-7ca54015"
+    "eu-west-3":
+      S3: "pl-23ad484a"
+    "sa-east-1":
+      S3: "pl-6aa54003"
+    "us-east-1":
+      S3: "pl-63a5400a"
+    "us-east-2":
+      S3: "pl-7ba54012"
+    "us-west-1":
+      S3: "pl-6ba54002"
+    "us-west-2":
+      S3: "pl-68a54001"
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - General Security
+  AllowPrivateSegment:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Private Local Segment
+      GroupName: "sg.net.localsegment"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+      SecurityGroupIngress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+  AllowPublicSegment:
+    Type: AWS::EC2::SecurityGroup
+    Condition: IsPublic
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Public Local Segment
+      GroupName: "sg.net.publicsegment"
+      SecurityGroupEgress:
+        - Description: Public Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref PublicSegmentCidr
+      SecurityGroupIngress:
+        - Description: Public Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref PublicSegmentCidr
+  AllowCorpNetwork:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Corporate Network
+      GroupName: "sg.net.corpnet"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network
+          IpProtocol: '-1'
+          CidrIp: !Ref CorpNetworkCidr
+      SecurityGroupIngress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network
+          IpProtocol: '-1'
+          CidrIp: !Ref CorpNetworkCidr
+  AllowPublicAndPrivateSegment:
+    Type: AWS::EC2::SecurityGroup
+    Condition: IsPublic
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Public and Private Local Segment
+      GroupName: "sg.net.localsegment.public"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Public Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref PublicSegmentCidr
+      SecurityGroupIngress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Public Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref PublicSegmentCidr
+
+  #---------------------------- Resources - Outbound Security
+  AllowOutLocalSegment:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Local Segment
+      GroupName: "sg.out.localsegment"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+  AllowOutLocalSegmentWithS3:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Local Segment with S3 Access
+      GroupName: "sg.out.localsegment.s3"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: S3 Access
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          DestinationPrefixListId: !FindInMap [AWSPrefix, !Ref "AWS::Region", S3]
+  AllowOutCorpNetwork:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Corporate Network
+      GroupName: "sg.out.corpnetwork"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network
+          IpProtocol: '-1'
+          CidrIp: !Ref CorpNetworkCidr
+  AllowOutCorpNetworkWithS3:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Corporate Network with S3 Access
+      GroupName: "sg.out.corpnetwork.s3"
+      SecurityGroupEgress:
+        - Description: Local Segment
+          IpProtocol: '-1'
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network
+          IpProtocol: '-1'
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: S3 Access
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          DestinationPrefixListId: !FindInMap [AWSPrefix, !Ref "AWS::Region", S3]
+  AllowOutInternet:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Internet Access
+      GroupName: "sg.out.internet"
+      SecurityGroupEgress:
+        - Description: Internet
+          IpProtocol: '-1'
+          CidrIp: "0.0.0.0/0"
+
+  #---------------------------- Resources - Inbound Security - Remote Administrative Access
+  AllowInSSH:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: SSH Access for Internal Network
+      GroupName: "sg.in.admin.ssh"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Local Segment SSH Access
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network SSH Access
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInSSHForPublic:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: SSH Access for Corporate Internet Outbound Restricted
+      GroupName: "sg.in.admin.ssh.public"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Public Corporate Internet SSH Access
+          IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref CorporateInternetOutboundAddress
+  AllowInRDPForInternal:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: RDP Access for Internal Network
+      GroupName: "sg.in.admin.rdp"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Local Segment RDP Access
+          IpProtocol: "tcp"
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network RDP Access
+          IpProtocol: "tcp"
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInRDPForPublic:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: RDP Access for Corporate Internet Outbound Restricted
+      GroupName: "sg.in.admin.rdp.public"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Public Corporate Internet RDP Access
+          IpProtocol: "tcp"
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorporateInternetOutboundAddress
+  AllowInWinRM:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: WinRM Access
+      GroupName: "sg.in.admin.winrm"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Local Segment WinRM Access
+          IpProtocol: "tcp"
+          FromPort: 5985
+          ToPort: 5986
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network WinRM Access
+          IpProtocol: "tcp"
+          FromPort: 5985
+          ToPort: 5986
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInWindowsManagement:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Windows Management Access
+      GroupName: "sg.in.admin.windows"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Local Segment RDP Access
+          IpProtocol: "tcp"
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network RDP Access
+          IpProtocol: "tcp"
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Local Segment Windows Access
+          IpProtocol: "tcp"
+          FromPort: 5985
+          ToPort: 5986
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: Corporate Network WinRM Access
+          IpProtocol: "tcp"
+          FromPort: 5985
+          ToPort: 5986
+          CidrIp: !Ref CorpNetworkCidr
+          
+  #---------------------------- Resources - Inbound Security - Corporate Internet Outbound Restricted
+  AllowInHTTPForCorp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTP Service from Corporate Internet Outbound Restricted
+      GroupName: "sg.in.service.http.corp"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Internet HTTP form Corporate Only
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref CorporateInternetOutboundAddress
+  AllowInHTTPSForCorp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTPS Service from Corporate Internet Outbound Restricted
+      GroupName: "sg.in.service.https.corp"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Internet HTTPS from Corporate Only
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref CorporateInternetOutboundAddress
+  AllowInWebServiceForCorp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTP Web Service from Corporate Internet Outbound Restricted
+      GroupName: "sg.in.service.webservice.corp"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Internet HTTP from Corporate Only
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref CorporateInternetOutboundAddress
+        - Description: Internet HTTPS from Coporate Only
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref CorporateInternetOutboundAddress
+
+  #---------------------------- Resources - Inbound Security - Internet Wide
+  AllowInHTTPForInternet:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTP Service
+      GroupName: "sg.in.service.http.internet"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Internet HTTP
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+  AllowInHTTPSForInternet:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTPS Service
+      GroupName: "sg.in.service.https.internet"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Internet HTTPS
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: "0.0.0.0/0"
+  AllowInWebServiceForInternet:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTP Web Service
+      GroupName: "sg.in.service.webservice"
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Internet HTTP
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - Description: Internet HTTPS
+          IpProtocol: "tcp"
+          FromPort: 443
+          ToPort: 443
+          CidrIp: "0.0.0.0/0"
+
+  #---------------------------- Resources - Inbound Security - General Services
+  AllowInICMP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: ICMP Echo
+      GroupName: sg.in.service.icmp.echo
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: ICMP Echo
+          IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+        - Description: ICMP PathMTU
+          IpProtocol: icmp
+          FromPort: 3
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+  AllowInDNS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: DNS
+      GroupName: sg.in.service.dns
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: DNS
+          IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: DNS
+          IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInHTTP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTP
+      GroupName: sg.in.service.http
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: HTTP
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInHTTPS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: HTTPS
+      GroupName: sg.in.service.https
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: HTTPS
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInRadius:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: RADIUS
+      GroupName: sg.in.service.radius
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: RADIUS Authentication
+          IpProtocol: udp
+          FromPort: 1812
+          ToPort: 1812
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RADIUS Accounting
+          IpProtocol: udp
+          FromPort: 1813
+          ToPort: 1813
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInESSRec:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: ESS Rec
+      GroupName: sg.in.service.ess-rec
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: ESS Rec Windows Agent
+          IpProtocol: tcp
+          FromPort: 5520
+          ToPort: 5520
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: ESS Rec Administrator
+          IpProtocol: tcp
+          FromPort: 5521
+          ToPort: 5521
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: ESS Rec Linux Agent
+          IpProtocol: tcp
+          FromPort: 5522
+          ToPort: 5522
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInPostgreSQL:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: PostgreSQL
+      GroupName: sg.in.service.postgresql
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: '127.0.0.1/32'
+      SecurityGroupIngress:
+        - Description: PostgreSQL TCP
+          IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: PostgreSQL UDP
+          IpProtocol: udp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref LocalSegmentCidr
+  AllowInMySQL:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: MySQL
+      GroupName: sg.in.service.mysql
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: '127.0.0.1/32'
+      SecurityGroupIngress:
+        - Description: MySQL TCP
+          IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: MySQL UDP
+          IpProtocol: udp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: !Ref LocalSegmentCidr
+  AllowInSQLServer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: SQL Server
+      GroupName: sg.in.service.sqlserver
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: '127.0.0.1/32'
+      SecurityGroupIngress:
+        - Description: SQL Server
+          IpProtocol: tcp
+          FromPort: 1433
+          ToPort: 1433
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: SQL Server monitor TCP
+          IpProtocol: tcp
+          FromPort: 1434
+          ToPort: 1434
+          CidrIp: !Ref LocalSegmentCidr
+        - Description: SQL Server monitor UDP
+          IpProtocol: udp
+          FromPort: 1434
+          ToPort: 1434
+          CidrIp: !Ref LocalSegmentCidr
+
+  #---------------------------- Resources - Inbound Security - Windows Services
+  AllowInADFS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: ADFS
+      GroupName: sec.windows.adfs
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: ADFS HTTP
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: ADFS HTTPS
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInWSUS:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: WSUS
+      GroupName: sec.windows.wsus
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: WSUS
+          IpProtocol: tcp
+          FromPort: 8530
+          ToPort: 8530
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: WSUS HTTPS
+          IpProtocol: tcp
+          FromPort: 8531
+          ToPort: 8531
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInMIM:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: MIM Portal
+      GroupName: sec.windows.mim
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: MIM Portal
+          IpProtocol: tcp
+          FromPort: 82
+          ToPort: 82
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: MIM PIP Portal
+          IpProtocol: tcp
+          FromPort: 8090
+          ToPort: 8090
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInRDSBroker:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Remote Desktop
+      GroupName: sec.windows.rds.broker
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: RD Connection Broker
+          IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Remote Desktop
+          IpProtocol: udp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RD Web Access Connection
+          IpProtocol: tcp
+          FromPort: 5504
+          ToPort: 5504
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: WinRM
+          IpProtocol: tcp
+          FromPort: 5985
+          ToPort: 5985
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInDFSN:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: DFS Namespace
+      GroupName: sec.windows.dfs-n
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: LDAP
+          IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP
+          IpProtocol: udp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP SSL
+          IpProtocol: tcp
+          FromPort: 636
+          ToPort: 636
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: SMB
+          IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInCertificateService:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Certificate Services
+      GroupName: sec.windows.certificate-service
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInRDP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Remote Desktop
+      GroupName: sec.windows.rdp
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: Remote Desktop
+          IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Remote Desktop
+          IpProtocol: udp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInWindowsCommonServer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Windows Server Common Ports
+      GroupName: sec.windows.common.server
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: ICMP Echo
+          IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: ICMP PathMTU
+          IpProtocol: icmp
+          FromPort: 3
+          ToPort: -1
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: SMB
+          IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInWindowsCommonClient:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Windows Client Common Ports
+      GroupName: sec.windows.common.client
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: ICMP Echo
+          IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: ICMP PathMTU
+          IpProtocol: icmp
+          FromPort: 3
+          ToPort: -1
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: SMB
+          IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInWindowsCommonDCReplication:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: ADDC Replication Ports
+      GroupName: sec.windows.common.dc.replication
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: DNS
+          IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: DNS
+          IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Kerberos
+          IpProtocol: tcp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Kerberos
+          IpProtocol: udp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: NTP
+          IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP
+          IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP
+          IpProtocol: udp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP SSL
+          IpProtocol: tcp
+          FromPort: 636
+          ToPort: 636
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: SMB
+          IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr
+  AllowInWindowsCommonDCService:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: ADDC Service Ports
+      GroupName: sec.windows.common.dc.service
+      SecurityGroupEgress:
+        - Description: Loopback
+          IpProtocol: '-1'
+          CidrIp: "127.0.0.1/32"
+      SecurityGroupIngress:
+        - Description: ICMP Echo
+          IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: ICMP PathMTU
+          IpProtocol: icmp
+          FromPort: 3
+          ToPort: -1
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: DNS
+          IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: DNS
+          IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Kerberos
+          IpProtocol: tcp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: Kerberos
+          IpProtocol: udp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: NTP
+          IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC
+          IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP
+          IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP
+          IpProtocol: udp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP SSL
+          IpProtocol: tcp
+          FromPort: 636
+          ToPort: 636
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: SMB
+          IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: KPasswd
+          IpProtocol: tcp
+          FromPort: 464
+          ToPort: 464
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: LDAP Global Catalog
+          IpProtocol: tcp
+          FromPort: 3268
+          ToPort: 3269
+          CidrIp: !Ref CorpNetworkCidr
+        - Description: RPC Dynamic
+          IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: !Ref CorpNetworkCidr

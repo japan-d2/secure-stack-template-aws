@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - ECS Task Definition Provisioning Template
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Task Settings"
+        Parameters:
+          - TaskCpuUnit
+          - TaskName
+          - TaskMemory
+          - DockerNetworkingMode
+      - Label:
+          default: "Container Settings"
+        Parameters:
+          - ImageName
+          - LogDriver
+          - LogGroupName
+          - LogStreamPrefix
+          - PortMappingProtocol
+          - Port
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - Task Definition
+  TaskCpuUnit:
+    Description: The number of cpu units used by the task.
+    Type: String
+    Default: "256"
+    AllowedValues:
+      - "256"
+      - "512"
+      - "1024"
+      - "2048"
+      - "4096"
+
+  TaskName:
+    Description: Task name.
+    Type: String
+
+  TaskMemory:
+    Description: The amount (in MiB) of memory used by the task.
+    Type: String
+    Default: "512"
+    AllowedValues:
+      - "512"
+      - "1024"
+      - "2048"
+      - "3072"
+      - "4096"
+      - "5120"
+      - "6144"
+      - "7168"
+      - "8192"
+      - "16384"
+      - "30720"
+
+  DockerNetworkingMode:
+      Description: The Docker networking mode to use for the containers in the task.
+      Type: String
+      Default: awsvpc
+      AllowedValues:
+      - awsvpc
+      - bridge
+      - host
+      - none
+
+  # ---------------------------- Parameters - Container Definition
+  ImageName:
+    Description: The image used to start a container.(repository-uri/image:tag)
+    Type: String
+    MaxLength: 255
+    ConstraintDescription: Up to 255 letters (uppercase and lowercase), numbers, hyphens, underscores, colons, periods, forward slashes, and number signs are allowed.
+
+  LogDriver:
+    Description: The log driver to use for the container.
+    Type: String
+    Default: awslogs
+    AllowedValues:
+      - awslogs
+      - fluentd
+      - gelf
+      - json-file
+      - journald
+      - logentries
+      - syslog
+      - splunk
+    ConstraintDescription: For tasks using the Fargate launch type, the supported log drivers are awslogs and splunk.
+
+  LogGroupName:
+    Description: CloudWatchLogs log group to use for the container.
+    Type: String
+
+  LogStreamPrefix:
+    Description: CloudWatchLogs stream prefix to use for the container.
+    Type: String
+
+  PortMappingProtocol:
+    Description: The protocol used for the port mapping.
+    Type: String
+    Default: tcp
+    AllowedValues:
+      - tcp
+      - udp
+
+  Port:
+    Description: The port number on the container that is bound to the user-specified or automatically assigned host port.
+    Type: Number
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - CloudWatch Log Group
+  EcsTaskLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref LogGroupName
+
+  #---------------------------- Resources - ECS Task ExecutionRole
+  EcsTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${TaskName}-EcsTaskExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AssumeRole-EcsTaskExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - "*"
+                  
+  #---------------------------- Resources - ECS Task Definition
+  EcsTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: !Ref TaskCpuUnit
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Family: !Ref TaskName
+      Memory: !Ref TaskMemory
+      NetworkMode: !Ref DockerNetworkingMode
+      # only support fargate mode
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Name: !Ref TaskName
+          Image: !Ref ImageName
+          LogConfiguration:
+            LogDriver: !Ref LogDriver
+            Options:
+              awslogs-group: !Ref EcsTaskLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref LogStreamPrefix
+          PortMappings:
+            - ContainerPort: !Ref Port
+              HostPort: !Ref Port
+              Protocol: !Ref PortMappingProtocol
+
+#---------------------------- Output
+Outputs:
+  TaskDefinitionArn:
+    Description: Task Definition ARN
+    Value: !Ref EcsTaskDefinition

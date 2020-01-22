@@ -1,0 +1,433 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - VPC Network ACL Template
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - VPC Network ACL
+  NetworkAclID:
+    Description: VPC Network ACL ID
+    Type: String
+    AllowedPattern: "acl-([a-zA-Z0-9])+"
+  NetworkCidrBlock:
+    Description: VPC Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  # ---------------------------- Parameters - Corporate Network
+  CorporateNetworkCidr:
+    Description: "Corporate Network CIDR"
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  # ---------------------------- Parameters - Public Subnet
+  PublicNetworkCidrBlock:
+    Description: VPC Public Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+# ---------------------------- Metadata
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+    - 
+        Label: 
+          default: "VPC Settings"
+        Parameters: 
+          - NetworkAclID
+          - NetworkCidrBlock
+          - CorporateNetworkCidr
+    - 
+        Label: 
+          default: "Public Subnet Settings"
+        Parameters: 
+          - PublicNetworkCidrBlock
+
+# ---------------------------- Conditions
+Conditions: 
+  IsPublic: !Not [!Equals ["", !Ref PublicNetworkCidrBlock]]
+  IsPrivate: !Equals ["", !Ref PublicNetworkCidrBlock]
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - VPC Network ACL Entries - Ingress
+  AclIngressFTP: # Deny FTP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 201
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 20
+        To: 21
+  AclIngressTelnet: # Deny Telnet (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 202
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 23
+        To: 23
+  AclIngressSMTP: # Deny SMTP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 203
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 25
+        To: 25
+  AclIngressTFTP: # Deny TFTP (UDP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 204
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 17
+      PortRange:
+        From: 69
+        To: 69
+  AclIngressSSHInternal: # Allow Internal SSH (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 301
+      RuleAction: allow
+      CidrBlock: !Ref CorporateNetworkCidr
+      Protocol: 6
+      PortRange:
+        From: 22
+        To: 22
+  AclIngressSSHExternal: # Deny External SSH (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 302
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 22
+        To: 22
+  AclIngressSMBTCPInternal: # Allow Internal SMB (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 303
+      RuleAction: allow
+      CidrBlock: !If [IsPublic, !Ref NetworkCidrBlock, !Ref CorporateNetworkCidr]
+      Protocol: 6
+      PortRange:
+        From: 135
+        To: 139
+  AclIngressSMBUDPInternal: # Allow Internal SMB (UDP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 304
+      RuleAction: allow
+      CidrBlock: !If [IsPublic, !Ref NetworkCidrBlock, !Ref CorporateNetworkCidr]
+      Protocol: 17
+      PortRange:
+        From: 135
+        To: 139
+  AclIngressSMBTCPExternal: # Deny External SMB (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 305
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 135
+        To: 139
+  AclIngressSMBUDPExternal: # Deny External SMB (UDP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 306
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 17
+      PortRange:
+        From: 135
+        To: 139
+  AclIngressNFSTCPInternal: # Allow Internal NFS (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 309
+      RuleAction: allow
+      CidrBlock: !If [IsPublic, !Ref NetworkCidrBlock, !Ref CorporateNetworkCidr]
+      Protocol: 6
+      PortRange:
+        From: 2049
+        To: 2049
+  AclIngressNFSUDPInternal: # Allow Internal NFS (UDP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 310
+      RuleAction: allow
+      CidrBlock: !If [IsPublic, !Ref NetworkCidrBlock, !Ref CorporateNetworkCidr]
+      Protocol: 17
+      PortRange:
+        From: 2049
+        To: 2049
+  AclIngressNFSTCPExternal: # Deny External NFS (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 311
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 2049
+        To: 2049
+  AclIngressNFSUDPExternal: # Deny External NFS (UDP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 312
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 17
+      PortRange:
+        From: 2049
+        To: 2049
+  AclIngressRDPInternal: # Allow Internal RDP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 317
+      RuleAction: allow
+      CidrBlock: !Ref CorporateNetworkCidr
+      Protocol: 6
+      PortRange:
+        From: 3389
+        To: 3389
+  AclIngressRDPExternal: # Deny External RDP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 318
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 3389
+        To: 3389
+  AclIngressPowerShellInternal: # Allow Internal Power Shell (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 319
+      RuleAction: allow
+      CidrBlock: !Ref CorporateNetworkCidr
+      Protocol: 6
+      PortRange:
+        From: 5985
+        To: 5986
+  AclIngressPowerShellExternal: # Deny External Power Shell (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 320
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 5985
+        To: 5986
+  AclIngressAll: # Allow All Traffic
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: False
+      RuleNumber: 9999
+      RuleAction: allow
+      CidrBlock: "0.0.0.0/0"
+      Protocol: -1
+
+  #---------------------------- Resources - VPC Network ACL Entries - Egress
+  AclEgressTelnet: # Deny Telnet (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 202
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 23
+        To: 23
+  AclEgressSMTP: # Deny SMTP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 203
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 25
+        To: 25
+  AclEgressFingerTCP: # Deny Finger (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 205
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 79
+        To: 79
+  AclEgressSSHInternal: # Allow Internal SSH (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPrivate
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 301
+      RuleAction: allow
+      CidrBlock: !Ref CorporateNetworkCidr
+      Protocol: 6
+      PortRange:
+        From: 22
+        To: 22
+  AclEgressSSHExternal: # Deny External SSH (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 302
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 22
+        To: 22
+  AclEgressRDPInternal: # Allow Internal RDP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPrivate
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 317
+      RuleAction: allow
+      CidrBlock: !Ref CorporateNetworkCidr
+      Protocol: 6
+      PortRange:
+        From: 3389
+        To: 3389
+  AclEgressRDPExternal: # Deny External RDP (TCP)
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: true
+      RuleNumber: 318
+      RuleAction: deny
+      CidrBlock: "0.0.0.0/0"
+      Protocol: 6
+      PortRange:
+        From: 3389
+        To: 3389
+  AclEgressPrivateSubnet: # Allow VPC Private Subnet
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPublic
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: True
+      RuleNumber: 9001
+      RuleAction: allow
+      CidrBlock: !Ref NetworkCidrBlock
+      Protocol: -1
+  AclEgressPublicSubnet: # Allow VPC Private Subnet
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPublic
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: True
+      RuleNumber: 9002
+      RuleAction: allow
+      CidrBlock: !Ref PublicNetworkCidrBlock
+      Protocol: -1
+  AclEgressDenyCorpNetwork: # Deny Corporate Network
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPublic
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: True
+      RuleNumber: 9011
+      RuleAction: deny
+      CidrBlock: "10.0.0.0/8"
+      Protocol: -1
+  AclEgressDenyPrivateRange1: # Deny Private Range C
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPublic
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: True
+      RuleNumber: 9091
+      RuleAction: deny
+      CidrBlock: "192.168.0.0/16"
+      Protocol: -1
+  AclEgressDenyPrivateRange2: # Deny Private Range B
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: IsPublic
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: True
+      RuleNumber: 9092
+      RuleAction: deny
+      CidrBlock: "172.16.0.0/12"
+      Protocol: -1
+  AclEgressAll: # Allow All Traffic
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAclID
+      Egress: True
+      RuleNumber: 9999
+      RuleAction: allow
+      CidrBlock: "0.0.0.0/0"
+      Protocol: -1
