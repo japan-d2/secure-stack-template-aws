@@ -1,0 +1,321 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - Standard S3 Bucket Template
+
+# ---------------------------- Parameters
+Parameters:
+  Environment:
+    Description: Environment Type
+    Type: String
+    Default: eval
+    AllowedValues:
+      - prod
+      - mirror
+      - stage
+      - test
+      - develop
+      - eval
+      - onetime
+  BucketName:
+    Type: String
+    AllowedPattern: "^[a-z0-9]([a-z0-9]|[-]){1,61}[a-z0-9]$"
+    Description: Name of the bucket to be created
+  UseStandardBucketPolicy:
+    Type: String
+    Default: 'TRUE'
+    AllowedPattern: "(TRUE)?"
+    Description: Input "TRUE" when using default bucket policy
+  EnableVersioning:
+    Type: String
+    Default: 'TRUE'
+    AllowedPattern: "(TRUE)?"
+    Description: Input "TRUE" when enabling versioning
+  AuthorizedVpcEndpointId:
+    Type: String
+    AllowedPattern: "(vpce-[a-z0-9]+)?"
+    Description: Input vpc-endpoint-id when limiting access only from specific vpc endpoint
+  NoncurrentVersionExpirationInDays:
+    Type: Number
+    Default: 0
+    Description: Input days to preserve old version objects (Versioning should be enabled.)
+  KmsKeyArn:
+    Type: String
+    AllowedPattern: "(arn:aws:kms:[a-z0-9-]+:[0-9]+:key/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?"
+    Description: Input kms-key-id when using specific kms key (New key will be created when leaving this empty)
+  LoggingDestinationBucketName:
+    Type: String
+    AllowedPattern: "([a-z0-9][a-z0-9-]{1,61}[a-z0-9])?"
+    Description: Input bucket name if saving access logs
+
+# ---------------------------- Conditions
+Conditions:
+  CreateStandardBucketPolicy: !Equals [!Ref UseStandardBucketPolicy, 'TRUE']
+  CreateStandardKMSKey: !Equals [!Ref KmsKeyArn, '']
+  EnableVersioning: !Equals [!Ref EnableVersioning, 'TRUE']
+  CreateLifecycleConfiguration:
+    Fn::And:
+      - !Not [!Equals [!Ref NoncurrentVersionExpirationInDays, 0]]
+      - !Condition EnableVersioning
+  RestrictVpcAccess: !Not [!Equals [!Ref AuthorizedVpcEndpointId, '']]
+  IsLoggingBucketSpecified: !Not [!Equals [!Ref LoggingDestinationBucketName, '']]
+
+#---------------------------- Resources
+Resources:
+  StandardBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: BucketOwnerFullControl
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !If [CreateStandardKMSKey, !GetAtt StandardEncryptionKey.Arn, !Ref KmsKeyArn]
+              SSEAlgorithm: aws:kms
+      BucketName: !Ref BucketName
+      LifecycleConfiguration:
+        Fn::If:
+          - CreateLifecycleConfiguration
+          - Rules:
+              - Status: Enabled
+                NoncurrentVersionExpirationInDays: !Ref NoncurrentVersionExpirationInDays
+          - !Ref AWS::NoValue
+      LoggingConfiguration:
+        Fn::If:
+          - IsLoggingBucketSpecified
+          - DestinationBucketName: !Ref LoggingDestinationBucketName
+            LogFilePrefix: !Ref BucketName
+          - !Ref AWS::NoValue
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: !If [EnableVersioning, Enabled, Suspended]
+  StandardBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: CreateStandardBucketPolicy
+    Properties:
+      Bucket: !Ref StandardBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Allow-bucket-operations
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - s3:DeleteBucket
+              - s3:DeleteBucketWebsite
+              - s3:GetAccelerateConfiguration
+              - s3:GetAnalyticsConfiguration
+              - s3:GetBucketAcl
+              - s3:GetBucketCORS
+              - s3:GetBucketLocation
+              - s3:GetBucketLogging
+              - s3:GetBucketNotification
+              - s3:GetBucketObjectLockConfiguration
+              - s3:GetBucketPolicy
+              - s3:GetBucketPolicyStatus
+              - s3:GetBucketPublicAccessBlock
+              - s3:GetBucketRequestPayment
+              - s3:GetBucketTagging
+              - s3:GetBucketVersioning
+              - s3:GetBucketWebsite
+              - s3:GetEncryptionConfiguration
+              - s3:GetInventoryConfiguration
+              - s3:GetLifecycleConfiguration
+              - s3:GetMetricsConfiguration
+              - s3:GetReplicationConfiguration
+              - s3:ListBucket
+              - s3:ListBucketByTags
+              - s3:ListBucketMultipartUploads
+              - s3:ListBucketVersions
+              - s3:PutAccelerateConfiguration
+              - s3:PutAnalyticsConfiguration
+              - s3:PutBucketAcl
+              - s3:PutBucketCORS
+              - s3:PutBucketLogging
+              - s3:PutBucketNotification
+              - s3:PutBucketObjectLockConfiguration
+              - s3:PutBucketRequestPayment
+              - s3:PutBucketTagging
+              - s3:PutBucketVersioning
+              - s3:PutBucketWebsite
+              - s3:PutEncryptionConfiguration
+              - s3:PutInventoryConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:PutMetricsConfiguration
+              - s3:PutReplicationConfiguration
+            Resource: !GetAtt StandardBucket.Arn
+          - Sid: Deny-changing-bucket-permission
+            Effect: Deny
+            NotPrincipal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/OrganizationAccountAccessRole
+            Action:
+              - s3:DeleteBucketPolicy
+              - s3:PutBucketPolicy
+              - s3:PutBucketPublicAccessBlock
+            Resource: !GetAtt StandardBucket.Arn
+          - Sid: Allow-oraganization-to-change-bucket-permission
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/OrganizationAccountAccessRole
+            Action:
+              - s3:DeleteBucketPolicy
+              - s3:PutBucketPolicy
+              - s3:PutBucketPublicAccessBlock
+            Resource: !GetAtt StandardBucket.Arn
+          - Sid: Deny-put-unencrypted-objects
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  - !If [CreateStandardKMSKey, !GetAtt StandardEncryptionKey.Arn, !Ref KmsKeyArn]
+          - Sid: Allow-put-encrypted-objects
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: 's3:PutObject'
+            Resource: !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  - !If [CreateStandardKMSKey, !GetAtt StandardEncryptionKey.Arn, !Ref KmsKeyArn]
+          - Fn::If:
+              - RestrictVpcAccess
+              - Sid: Deny-object-access-via-unspecified-vpce
+                Effect: Deny
+                Principal: '*'
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                  - s3:DeleteObjectTagging
+                  - s3:DeleteObjectVersion
+                  - s3:DeleteObjectVersionTagging
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                  - s3:ListMultipartUploadParts
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutObjectTagging
+                  - s3:PutObjectVersionAcl
+                  - s3:PutObjectVersionTagging
+                Resource: !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+                Condition:
+                  StringNotEquals:
+                    aws:sourceVpce: !Ref AuthorizedVpcEndpointId
+              - !Ref AWS::NoValue
+          - Fn::If:
+              - RestrictVpcAccess
+              - Sid: Allow-object-access-via-specified-vpce
+                Effect: Allow
+                Principal:
+                  AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                  - s3:DeleteObjectTagging
+                  - s3:DeleteObjectVersion
+                  - s3:DeleteObjectVersionTagging
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                  - s3:ListMultipartUploadParts
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutObjectTagging
+                  - s3:PutObjectVersionAcl
+                  - s3:PutObjectVersionTagging
+                Resource: !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+                Condition:
+                  StringEquals:
+                    aws:sourceVpce: !Ref AuthorizedVpcEndpointId
+              - Sid: Allow-object-access
+                Effect: Allow
+                Principal:
+                  AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                  - s3:DeleteObjectTagging
+                  - s3:DeleteObjectVersion
+                  - s3:DeleteObjectVersionTagging
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                  - s3:ListMultipartUploadParts
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutObjectTagging
+                  - s3:PutObjectVersionAcl
+                  - s3:PutObjectVersionTagging
+                Resource: !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+  StandardEncryptionKey:
+    Type: AWS::KMS::Key
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Condition: CreateStandardKMSKey
+    Properties:
+      Description: !Join ['', ['S3 Encryption key for bucket: ', !Ref BucketName]]
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Allow administrators to manage
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/OrganizationAccountAccessRole
+            Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:TagResource
+              - kms:UntagResource
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+            Resource: '*'
+          - Sid: Allow users to encrypt / decrypt
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+  StandardEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Condition: CreateStandardKMSKey
+    Properties:
+      AliasName: !Sub
+        - alias/${BucketName}-encryption-key
+        - { BucketName: !Ref StandardBucket }
+      TargetKeyId: !Ref StandardEncryptionKey
+
+#---------------------------- Output
+Outputs:
+  BucketName:
+    Value: !Ref BucketName
+    Export:
+      Name: !Sub ${Environment}:${BucketName}:bucket:name

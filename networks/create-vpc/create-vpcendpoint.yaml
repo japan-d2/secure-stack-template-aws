@@ -1,0 +1,485 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - VPC EndPoints Template
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - Environment
+  Environment:
+    Description: Environment Type
+    Type: String
+    Default: eval
+    AllowedValues:
+      - prod
+      - mirror
+      - stage
+      - test
+      - develop
+      - eval
+      - onetime
+
+  # ---------------------------- Parameters - VPC Network ACL
+  OrganizationId:
+    Description: Organization Principal ID
+    Type: String
+    AllowedPattern: "o-([a-zA-Z0-9])+"
+  VPCID:
+    Description: VPC ID
+    Type: String
+    AllowedPattern: "vpc-([a-zA-Z0-9])+"
+  NetworkCidr:
+    Description: VPC CIDR block
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+  PublicNetworkCidr:
+    Description: Public Network CIDR block
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+  RouteTableIDs:
+    Description: VPC Route Table ID
+    Type: CommaDelimitedList
+  SubnetIDs:
+    Description: VPC Subnet IDs
+    Type: List<AWS::EC2::Subnet::Id>
+
+Conditions:
+  IsPublicNetworkCidrBlank: !Equals [!Ref PublicNetworkCidr, '']
+
+# ---------------------------- Metadata
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Environment Settings"
+        Parameters: 
+          - Environment
+      -
+        Label: 
+          default: "VPC Settings"
+        Parameters: 
+          - OrganizationId
+          - VPCID
+          - RouteTableIDs
+          - SubnetIDs
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - Gateway Endpoint
+  EndPointS3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      RouteTableIds: !Ref RouteTableIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "s3"
+      VpcEndpointType: Gateway
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Allow Org S3 Bucket Access
+            Effect: Allow
+            Principal: "*"
+            NotAction:
+              - "s3:CreateBucket"
+              - "s3:DeleteBucket"
+              - "s3:DeleteBucketPolicy"
+              - "s3:PutBucketPolicy"
+              - "s3:PutBucketAcl"
+              - "s3:PutEncryptionConfiguration"
+              - "s3:PutBucketPublicAccessBlock"
+              - "s3:PutAccountPublicAccessBlock"
+              - "s3:PutObject"
+            Resource: "*"
+            Condition:
+              StringEquals:
+                PrincipalOrgID:
+                  - !Ref OrganizationId
+          - Sid: Restrict Access for Outside S3 Buckets
+            Effect: Allow
+            Principal: "*"
+            Action:
+              - "s3:ListBucket*"
+              - "s3:DeleteObject*"
+              - "s3:GetObject*"
+              - "s3:ListObject*"
+            Resource: "*"
+            Condition:
+              StringNotEquals:
+                PrincipalOrgID:
+                  - !Ref OrganizationId
+          - Sid: Allow PutObject Only If Using Inner-account-CMK
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: "s3:PutObject"
+            Resource: "*"
+            Condition:
+              StringLike:
+                s3:x-amz-server-side-encryption-aws-kms-key-id: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+          - Sid: Deny PutObject If Using Outer-account-CMK
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:PutObject"
+            Resource: "*"
+            Condition:
+              StringNotLike:
+                s3:x-amz-server-side-encryption-aws-kms-key-id: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+          - Sid: Allow only minimum permissions for ECR
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+            Resource: !Sub arn:aws:s3:::prod-${AWS::Region}-starport-layer-bucket/*
+
+  EndPointDynamoDB:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      RouteTableIds: !Ref RouteTableIDs
+      ServiceName: !Join
+        - '.'
+        - - com.amazonaws
+          - !Ref AWS::Region
+          - dynamodb
+      VpcEndpointType: Gateway
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Allow access only for inner-account
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheck
+              - dynamodb:CreateBackup
+              - dynamodb:CreateTable
+              - dynamodb:DeleteBackup
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeBackup
+              - dynamodb:DescribeContinuousBackups
+              - dynamodb:DescribeGlobalTable
+              - dynamodb:DescribeGlobalTableSettings
+              - dynamodb:DescribeLimits
+              - dynamodb:DescribeReservedCapacity
+              - dynamodb:DescribeReservedCapacityOfferings
+              - dynamodb:DescribeStream
+              - dynamodb:DescribeTable
+              - dynamodb:DescribeTimeToLive
+              - dynamodb:EnclosingOperation
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:ListBackups
+              - dynamodb:ListGlobalTables
+              - dynamodb:ListStreams
+              - dynamodb:ListTables
+              - dynamodb:ListTagsOfResource
+              - dynamodb:PurchaseReservedCapacityOfferings
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:RestoreTableToPointInTime
+              - dynamodb:Scan
+              - dynamodb:TagResource
+              - dynamodb:UntagResource
+              - dynamodb:UpdateContinuousBackups
+              - dynamodb:UpdateGlobalTable
+              - dynamodb:UpdateGlobalTableSettings
+              - dynamodb:UpdateItem
+              - dynamodb:UpdateTable
+              - dynamodb:UpdateTimeToLive
+            Resource: 
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*
+              - !Sub arn:aws:dynamodb::${AWS::AccountId}:global-table/*
+          - Sid: Deny access for outer-account
+            Effect: Deny
+            Principal: '*'
+            Action: dynamodb:*
+            NotResource:
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*
+              - !Sub arn:aws:dynamodb::${AWS::AccountId}:global-table/*
+
+  #---------------------------- Resources - Interface Endpoint
+  EndPointKMS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "kms"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointSTS:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "sts"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointSSM:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "ssm"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointSSMMessages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "ssmmessages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointEC2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "ec2"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointEC2Messages:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "ec2messages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointSecretsManager:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "secretsmanager"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            NotAction:
+              - secretsmanager:CreateSecret
+              - secretsmanager:GetRandomPassword
+              - secretsmanager:ListSecrets
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - secretsmanager:CreateSecret
+              - secretsmanager:GetRandomPassword
+              - secretsmanager:ListSecrets
+            Resource: '*'
+          - Effect: Deny
+            Principal: '*'
+            Action: 'secretsmanager:CreateSecret'
+            Resource: '*'
+            Condition:
+              StringNotLike:
+                secretsmanager:KmsKeyId: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+          - Effect: Deny
+            Principal: '*'
+            Action: 'secretsmanager:UpdateSecret'
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*
+            Condition:
+              StringNotLike:
+                secretsmanager:KmsKeyId: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
+  EndPointMonitor:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "monitoring"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+  EndPointLogs:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "logs"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Allow all
+            Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+          - Sid: Restrict log-group actions
+            Effect: Deny
+            Principal: '*'
+            Action:
+              - logs:AssociateKmsKey
+              - logs:CreateExportTask
+              - logs:CreateLogStream
+              - logs:DeleteLogGroup
+              - logs:DeleteMetricFilter
+              - logs:DeleteRetentionPolicy
+              - logs:DeleteSubscriptionFilter
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:DescribeMetricFilters
+              - logs:DescribeSubscriptionFilters
+              - logs:DisassociateKmsKey
+              - logs:FilterLogEvents
+              - logs:GetLogGroupFields
+              - logs:ListTagsLogGroup
+              - logs:PutMetricFilter
+              - logs:PutRetentionPolicy
+              - logs:PutSubscriptionFilter
+              - logs:StartQuery
+              - logs:TagLogGroup
+              - logs:UntagLogGroup
+            NotResource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+          - Sid: Restrict log-stream actions
+            Effect: Deny
+            Principal: '*'
+            Action:
+              - logs:DeleteLogStream
+              - logs:GetLogEvents
+              - logs:PutLogEvents
+            NotResource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*
+  EndPointEvents:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join 
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "events"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource:
+              - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/*
+  EndpointEcr:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPCID
+      SubnetIds: !Ref SubnetIDs
+      ServiceName: !Join
+        - '.'
+        - - "com.amazonaws"
+          - !Ref "AWS::Region"
+          - "ecr"
+          - "dkr" # only support fargate
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Allow access only from the same region/account
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            # CreateRepository and GetAuthorizationToken are not included
+            # because they do not allow resource-level access restrictions.
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:BatchGetImage
+              - ecr:DescribeImages
+              - ecr:DescribeRepositories
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetLifecyclePolicy
+              - ecr:GetLifecyclePolicyPreview
+              - ecr:GetRepositoryPolicy
+              - ecr:ListImages
+              - ecr:ListTagsForResource
+            Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*
+  AllowLocalSegment:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: VPC Local Segment
+      GroupName: sg.vpce.endpoint-if
+      SecurityGroupIngress:
+        - Description: Local Segment (private)
+          IpProtocol: '-1'
+          CidrIp: !Ref NetworkCidr
+        - Fn::If:
+            - IsPublicNetworkCidrBlank
+            - !Ref AWS::NoValue
+            - Description: Local Segment (public)
+              IpProtocol: '-1'
+              CidrIp: !Ref PublicNetworkCidr
+
+#---------------------------- Output
+Outputs:
+  S3EndPointID:
+    Description: VPC EndPoint - S3 Gateway EndPoint ID
+    Value: !Ref EndPointS3
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:s3"
+  DynamoDBEndPointID:
+    Description: VPC EndPoint - DynamoDB Gateway EndPoint ID
+    Value: !Ref EndPointDynamoDB
+    Export:
+      Name: !Sub ${Environment}:${VPCID}:endpoint:dynamodb

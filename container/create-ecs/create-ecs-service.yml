@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - ECS Service Provisioning Template
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Service Settings"
+        Parameters:
+          - EcsClusterName
+          - DesiredCount
+          - LaunchType
+          - EcsServiceName
+          - EcsTaskDefinition
+      - Label:
+          default: "Load Balancer Settings"
+        Parameters:
+          - ContainerName
+          - ContainerPort
+          - TargetGroup
+      - Label:
+          default: "Network Settings"
+        Parameters:
+          - AssignPublicIp
+          - EcsSecurityGroupId
+          - EcsSubnetId1
+          - EcsSubnetId2
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - Service Settings
+  EcsClusterName:
+    Description: The short name or full Amazon Resource Name (ARN) of the cluster on which to run your service.
+    Type: String
+
+  DesiredCount:
+    Description: The number of instantiations of the specified task definition to place and keep running on your cluster.
+    Type: Number
+    Default: 2
+
+  LaunchType:
+    Description: The launch type on which to run your service.
+    Type: String
+    Default: FARGATE
+    AllowedValues:
+      - FARGATE
+      - EC2
+
+  EcsServiceName:
+    Description: The name of your service.
+    Type: String
+    MaxLength: 255
+    ConstraintDescription: Up to 255 letters (uppercase and lowercase), numbers, and hyphens are allowed.
+
+  EcsTaskDefinition:
+    Description: The family and revision (family:revision) or full ARN of the task definition to run in your service.
+    Type: String
+
+  # ---------------------------- Parameters - Load Balancer Settings
+  ContainerName:
+    Description: The name of the container (as it appears in a container definition) to associate with the load balancer.
+    Type: String
+
+  ContainerPort:
+    Description: The port on the container to associate with the load balancer.
+    Type: Number
+
+  TargetGroup:
+    Description: The full Amazon Resource Name (ARN) of the Elastic Load Balancing target group or groups associated with a service or task set.
+    Type: String
+
+  # ---------------------------- Parameters - Network Configuurations
+  AssignPublicIp:
+    Description: Whether the task's elastic network interface receives a public IP address.
+    Type: String
+    Default: DISABLED
+    AllowedValues:
+      - DISABLED
+      - ENABLED
+
+  EcsSecurityGroupId:
+    Description: The security groups associated with the task or service.
+    Type: AWS::EC2::SecurityGroup::Id
+    ConstraintDescription: Internet access(outbound to 0.0.0.0/0) is required for getting image.
+
+  EcsSubnetId1:
+    Description: The subnets associated with the task or service.(#1)
+    Type: AWS::EC2::Subnet::Id
+
+  EcsSubnetId2:
+    Description: The subnets associated with the task or service.(#2)
+    Type: AWS::EC2::Subnet::Id
+
+#---------------------------- Resources
+Resources:
+  EcsService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref EcsClusterName
+      DesiredCount: !Ref DesiredCount
+      LaunchType: !Ref LaunchType
+      LoadBalancers:
+        - ContainerName: !Ref ContainerName
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !Ref AssignPublicIp
+          SecurityGroups:
+            - !Ref EcsSecurityGroupId
+          Subnets:
+            - !Ref EcsSubnetId1
+            - !Ref EcsSubnetId2
+      ServiceName: !Ref EcsServiceName
+      TaskDefinition: !Ref EcsTaskDefinition

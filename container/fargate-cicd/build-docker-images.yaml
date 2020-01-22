@@ -1,0 +1,481 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - Docker image build pipeline
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "CodePipeline setting"
+        Parameters:
+          - CodePipelineName
+      - Label:
+          default: "CodeCommit settings"
+        Parameters:
+          - CodeCommitUserName
+          - CodeCommitRepositoryNameForDockerfile
+          - DockerfilePath
+          - DockerImageBuildContext
+      - Label:
+          default: "CodeBuild settings"
+        Parameters:
+          - CodeBuildProjectNameForDockerImageBuild
+          - CodeBuildComputeTypeForDockerImageBuild
+      - Label:
+          default: "CodeBuild Artifact, docker images settings"
+        Parameters:
+          - DockerImageRepositoryName
+          - DockerImageTag
+
+# ---------------------------- Parameters
+Parameters:
+# ---------------------------- Parameters - CodePipeline Setting
+  CodePipelineName:
+    Description: CodePipeline pipeline name
+    Type: String
+    MaxLength: 100
+    AllowedPattern: "^[a-zA-Z0-9]([a-zA-Z0-9]|[-])+$"
+
+# ---------------------------- Parameters - CodeCommit Settings
+  CodeCommitUserName:
+    Description: IAM user name for CodeCommit
+    Type: String
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "^[a-zA-Z0-9]([a-zA-Z0-9]|[-])+$"
+
+  CodeCommitRepositoryNameForDockerfile:
+    Description: CodeCommit repository name for Dockerfile and related resources.
+    Type: String
+    MinLength: 1
+    MaxLength: 100
+
+  DockerfilePath:
+    Description: Dockerfile path and file name in secondary resource
+    Type: String
+
+  DockerImageBuildContext:
+    Description: Docker image context when it is built
+    Type: String
+
+# ---------------------------- Parameters - CodeBuild Settings
+  CodeBuildProjectNameForDockerImageBuild:
+    Description: CodeBuild project name for Docker image build
+    Type: String
+    MinLength: 2
+    MaxLength: 255
+
+  CodeBuildComputeTypeForDockerImageBuild:
+    Description: CodeBuild compute type to build docker image
+    Type: String
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - BUILD_GENERAL1_LARGE
+
+# ---------------------------- Parameters - CodeBuild artifact, docker images settings
+  DockerImageRepositoryName:
+    Description: Repository to contain the image build in CodeBuild project.
+    Type: String
+    MaxLength: 256
+
+
+  DockerImageTag:
+    Description: Image tag given to the build images.
+    Type: String
+    MaxLength: 256
+    Default: latest
+
+# ---------------------------- Conditions
+Conditions:
+  IsDockerImageRepositoryNameSpecified: !Not [ !Equals [ !Ref DockerImageRepositoryName, "" ] ]
+  IsDockerImageBuildContextSpecified: !Not [ !Equals [ !Ref DockerImageBuildContext, "" ] ]
+
+#---------------------------- Resources
+Resources:
+  # CodeCommit related resources
+  ## IAM User to push codes from GitLab
+  CodeCommitUser:
+    Type: AWS::IAM::User
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeCommitPowerUser
+      # UserName: !Ref CodeCommitUserName
+      UserName: !Sub ${AWS::StackName}-${CodeCommitUserName}
+
+  ## CodeCommit Repository includes Dockerfile to be built.
+  CodeCommitRepositoryForDockerfile:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryDescription: CodeCommit repository includes Dockerfile to be built.
+      RepositoryName: !Ref CodeCommitRepositoryNameForDockerfile
+
+  # CodeBuild related resources
+  ## CodeBuildProject to build docker image
+  CodeBuildProjectForDockerImageBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Ref CodeBuildProjectNameForDockerImageBuild
+      Description: CodeBuild project to build docker image
+      Artifacts:
+        Type: CODEPIPELINE
+      ServiceRole: !GetAtt CodeBuildProjectServiceRoleForDockerImageBuild.Arn
+      BadgeEnabled: false
+      Environment:
+        ComputeType: !Ref CodeBuildComputeTypeForDockerImageBuild
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/standard:3.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: IMAGE_REPO_NAME
+            Type: PLAINTEXT
+            Value: !If
+              - IsDockerImageRepositoryNameSpecified
+              - !Ref DockerImageRepositoryName
+              - !Join
+                - '-'
+                - - "docker-image-repository"
+                  - !Ref AWS::StackName
+          - Name: IMAGE_BUILD_CONTEXT
+            Type: PLAINTEXT
+            Value: !If
+              - IsDockerImageBuildContextSpecified
+              - !Ref DockerImageBuildContext
+              - ""
+          - Name: IMAGE_FILE
+            Type: PLAINTEXT
+            Value: !Ref DockerfilePath
+          - Name: IMAGE_TAG
+            Type: PLAINTEXT
+            Value: !Ref DockerImageTag
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value: !Ref AWS::AccountId
+          - Name: AWS_DEFAULT_REGION
+            Type: PLAINTEXT
+            Value: !Ref AWS::Region
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                docker: 18
+              commands:
+                - uname -a
+                - docker --version
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo Building the Docker image...
+                - ls $CODEBUILD_SRC_DIR_includes_dockerfile
+                - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG -f $CODEBUILD_SRC_DIR_includes_dockerfile/$IMAGE_FILE $CODEBUILD_SRC_DIR_includes_dockerfile/$IMAGE_BUILD_CONTEXT
+                - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Pushing the Docker image...
+                - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+      SecondarySources:
+        - Type: CODECOMMIT
+          Location: !GetAtt CodeCommitRepositoryForDockerfile.CloneUrlHttp
+          SourceIdentifier: includes_dockerfile
+  ## IAM role to run CodeBuild project to build docker image
+  CodeBuildProjectServiceRoleForDockerImageBuild:
+    Type: AWS::IAM::Role
+    Properties:
+      # RoleName: !Ref CodeBuildIAMRoleNameForDockerImageBuild
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+  ## IAM role policy for the IAM role to build docker image used in CodeBuild project.
+  CodeBuildProjectPolicyForDockerImageBuild:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub codebuild-iam-policy-for-${AWS::StackName}
+      Roles:
+        - !Ref CodeBuildProjectServiceRoleForDockerImageBuild
+      PolicyDocument:
+        Statement:
+          # Allow statement to commit logs from CodeBuild to CloudWatch Logs
+          - Effect: Allow
+            Resource:
+              - !Join
+                - ':'
+                - - arn:aws:logs
+                  - !Ref AWS::Region
+                  - !Ref AWS::AccountId
+                  - log-group
+                  - !Join
+                    - '/'
+                    - - /aws/codebuild
+                      - !Ref CodeBuildProjectNameForDockerImageBuild
+              - !Join
+                - ':'
+                - - arn:aws:logs
+                  - !Ref AWS::Region
+                  - !Ref AWS::AccountId
+                  - log-group
+                  - !Join
+                    - '/'
+                    - - /aws/codebuild
+                      - !Ref CodeBuildProjectNameForDockerImageBuild
+                  - '*'
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+          - Effect: Allow
+            Resource:
+              - !Join
+                - '-'
+                - - 'arn:aws:s3:::codepipeline'
+                  - !Ref AWS::Region
+                  - '*'
+              - !GetAtt CodeBuildArtifactBucket.Arn
+              - !Sub arn:aws:s3:::${CodeBuildArtifactBucket}/*
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+          - Effect: Allow
+            Resource:
+              - !Join
+                - ':'
+                - - arn:aws:codecommit
+                  - !Ref AWS::Region
+                  - !Ref AWS::AccountId
+                  - !Ref CodeCommitRepositoryNameForDockerfile
+            Action:
+              - codecommit:GitPull
+          - Effect: Allow
+            Resource:
+              - !Join
+                - ':'
+                - - arn:aws:codebuild
+                  - !Ref AWS::Region
+                  - !Ref AWS::AccountId
+                  - !Sub
+                    - report-group/${CodeBuildProject}-*
+                    - CodeBuildProject: !Ref CodeBuildProjectNameForDockerImageBuild
+            Action:
+              -  codebuild:CreateReportGroup
+              -  codebuild:CreateReport
+              -  codebuild:UpdateReport
+              -  codebuild:BatchPutTestCases
+          - Effect: Allow
+            Resource:
+              - '*'
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:CompleteLayerUpload
+              - ecr:GetAuthorizationToken
+              - ecr:InitiateLayerUpload
+              - ecr:PutImage
+              - ecr:UploadLayerPart
+
+  DockerImageRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !If
+        - IsDockerImageRepositoryNameSpecified
+        - !Ref DockerImageRepositoryName
+        - !Join
+          - '-'
+          - - "docker-image-repository"
+            - !Ref AWS::StackName
+
+  # Settings of CodePipeline
+  ## IAM Role for CodePipeline
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}CodePipelinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${CodeBuildArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codecommit:GetRepository
+                  - codecommit:ListBranches
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+                  - codecommit:CancelUploadArchive
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetApplication
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetDeploymentConfig
+                  - codedeploy:RegisterApplicationRevision
+                  - codebuild:StartBuild
+                  - codebuild:StopBuild
+                  - codebuild:BatchGet*
+                  - codebuild:Get*
+                  - codebuild:List*
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - s3:*
+                  - ecs:*
+                  - elasticloadbalancing:*
+                  - ecr:*
+                  - autoscaling:*
+                  - iam:PassRole
+  ## CodePipeline setting
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Name: !Ref CodePipelineName
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodeBuildArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: "1"
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !Ref CodeCommitRepositoryNameForDockerfile
+                PollForSourceChanges: false
+                BranchName: master
+              RunOrder: 1
+              OutputArtifacts:
+                - Name: App
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProjectForDockerImageBuild
+              RunOrder: 1
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+  # Bucket to contain artifact from CodeBuild.
+  CodeBuildArtifactBucket:
+    Type: AWS::S3::Bucket
+
+  # CloudWatchEvents and related Resources.
+  # to notify updates in CodeCommit repository.
+  ## IAM role to invoke cloudwatch event rule.
+  CloudWatchEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-cwe-pipeline-execution
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Join
+                  - ":"
+                  - - arn:aws:codepipeline
+                    - !Ref AWS::Region
+                    - !Ref AWS::AccountId
+                    - !Ref CodePipelineName
+  ## CloudWatch Event rule to notify update in CodeCommit repository.
+  CloudWatchEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - "CodeCommit Repository State Change"
+        resources:
+          - !Join
+            - ":"
+            - - arn:aws:codecommit
+              - !Ref AWS::Region
+              - !Ref AWS::AccountId
+              - !Ref CodeCommitRepositoryNameForDockerfile
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - master
+      Targets:
+        - Arn:
+            !Join
+              - ":"
+              - - arn:aws:codepipeline
+                - !Ref AWS::Region
+                - !Ref AWS::AccountId
+                - !Ref CodePipelineName
+          RoleArn: !GetAtt CloudWatchEventRole.Arn
+          Id: !Sub ${AWS::StackName}-codepipeline-AppPipeline
+
+#---------------------------- Output
+Outputs:
+  CodeCommitUserArn:
+    Value: !GetAtt CodeCommitUser.Arn
+  CodeBuildProjectServiceRoleForDockerImageBuildRoleName:
+    Value: !Ref CodeBuildProjectServiceRoleForDockerImageBuild
+  CodeBuildProjectServiceRoleForDockerImageBuildRoleArn:
+    Value: !GetAtt CodeBuildProjectServiceRoleForDockerImageBuild.Arn
+  CodeBuildProjectServiceRoleForDockerImageBuildRoleId:
+    Value: !GetAtt CodeBuildProjectServiceRoleForDockerImageBuild.RoleId
+  CodePipelineServiceRoleName:
+    Value: !Ref CodePipelineServiceRole
+  CodePipelineServiceRoleArn:
+    Value: !GetAtt CodePipelineServiceRole.Arn
+  CodePipelineServiceRoleId:
+    Value: !GetAtt CodePipelineServiceRole.RoleId
+  CloudWatchEventRoleName:
+    Value: !Ref CloudWatchEventRole
+  CloudWatchEventRoleArn:
+    Value: !GetAtt CloudWatchEventRole.Arn
+  CloudWatchEventRoleId:
+    Value: !GetAtt CloudWatchEventRole.RoleId

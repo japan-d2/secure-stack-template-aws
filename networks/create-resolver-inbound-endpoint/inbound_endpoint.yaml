@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fast Track - Route 53 Inbound Endpoint Template
+
+# ---------------------------- Metadata
+Parameters:
+  NumberOfSubnets:
+    Type: Number
+    MinValue: 1
+    MaxValue: 3
+    Default: 3
+  ResolverEndpointName:
+    Type: String
+    MinValue: 1
+  Subnet1Id:
+    Type: AWS::EC2::Subnet::Id
+  Subnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Set any subnet id even if 'NumberOfSubnets' is set below 2. (In that case, this value will be ignored.)
+  Subnet3Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Set any subnet id even if 'NumberOfSubnets' is set below 3. (In that case, this value will be ignored.)
+  IpForSubnet1:
+    Type: String
+  IpForSubnet2:
+    Type: String
+  IpForSubnet3:
+    Type: String
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    
+# ---------------------------- Conditions
+Conditions:
+  UseSubnet2Id: !Equals [!Ref NumberOfSubnets, 2]
+  UseSubnet3Id: !Equals [!Ref NumberOfSubnets, 3]
+  IsIpForSubnet1Blank: !Equals [!Ref IpForSubnet1, '']
+  IsIpForSubnet2Blank: !Equals [!Ref IpForSubnet2, '']
+  IsIpForSubnet3Blank: !Equals [!Ref IpForSubnet3, '']
+
+#---------------------------- Resources
+Resources:
+  InboundEndpoint:
+    Type: AWS::Route53Resolver::ResolverEndpoint
+    Properties:
+      Direction: INBOUND
+      Name: !Ref ResolverEndpointName
+      SecurityGroupIds: !Ref SecurityGroupIds
+      IpAddresses:
+        Fn::If:
+          - UseSubnet3Id
+          - - SubnetId: !Ref Subnet1Id
+              Ip:
+                Fn::If:
+                  - IsIpForSubnet1Blank
+                  - !Ref AWS::NoValue
+                  - !Ref IpForSubnet1
+            - SubnetId: !Ref Subnet2Id
+              Ip:
+                Fn::If:
+                  - IsIpForSubnet2Blank
+                  - !Ref AWS::NoValue
+                  - !Ref IpForSubnet2
+            - SubnetId: !Ref Subnet3Id
+              Ip:
+                Fn::If:
+                  - IsIpForSubnet3Blank
+                  - !Ref AWS::NoValue
+                  - !Ref IpForSubnet3
+          - Fn::If:
+            - UseSubnet2Id
+            - - SubnetId: !Ref Subnet1Id
+                Ip:
+                  Fn::If:
+                    - IsIpForSubnet1Blank
+                    - !Ref AWS::NoValue
+                    - !Ref IpForSubnet1
+              - SubnetId: !Ref Subnet2Id
+                Ip:
+                  Fn::If:
+                    - IsIpForSubnet2Blank
+                    - !Ref AWS::NoValue
+                    - !Ref IpForSubnet2
+            - - SubnetId: !Ref Subnet1Id
+                Ip:
+                  Fn::If:
+                    - IsIpForSubnet1Blank
+                    - !Ref AWS::NoValue
+                    - !Ref IpForSubnet1

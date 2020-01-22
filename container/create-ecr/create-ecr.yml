@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - ECR Provisioning Template
+
+# ---------------------------- Parameters
+Parameters:
+  RepositoryName:
+    Description: ECR Repository Name
+    Type: String
+  SourceVpcEndpointID:
+    Description: Source VPC endpoint ID which accesses the repository to pull images.
+    Type: String
+    AllowedPattern: ^vpce-[a-z0-9]+$
+  IamRoleArn:
+    Description: IAM role ARN which uses SourceVpcEndpointID and runs ecs tasks.
+    Type: String
+    AllowedPattern: ^arn:aws:iam::[0-9]{12}:role/[a-zA-Z0-9|-]+$
+
+# --------------------------- Conditions
+Conditions: {}
+
+#---------------------------- Resources
+Resources:
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Deny getting images from the specific endpoint
+            Effect: Deny
+            Principal:
+              AWS: !Ref IamRoleArn
+            Action:
+              - "ecr:*"
+            Condition:
+              StringNotEquals:
+                aws:sourceVpce: 
+                    - !Ref SourceVpcEndpointID
+
+#---------------------------- Output
+Outputs:
+  RepositoryArn:
+    Value: !GetAtt EcrRepository.Arn

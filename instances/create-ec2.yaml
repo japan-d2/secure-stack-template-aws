@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - EC2 Instance Template For Development
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "General Settings"
+        Parameters:
+          - ImageId
+          - InstanceType
+          - InstanceName
+          - KeyName
+          - ProjectId
+      - Label:
+          default: "Network Interface Settings"
+        Parameters:
+          - IsAssociatePublicIpAddress
+          - SecurityGroupIds
+          - SubnetId
+      - Label:
+          default: "Storage Settings"
+        Parameters:
+          - DeviceName
+          - VolumeSize
+          - VolumeType
+
+# ---------------------------- Parameters
+Parameters:
+  ImageId:
+    Description: The ID of the AMI.
+    Type: AWS::EC2::Image::Id
+  InstanceType:
+    Description: The instance type.
+    Type: String
+    Default: t2.micro
+  KeyName:
+    Description: The name of the key pair.
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceName:
+    Description : Your instance name.
+    Type: String
+  ProjectId:
+    Description: Project Code Id
+    Type: String
+    AllowedPattern: "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*$"
+
+  # ---------------------------- Parameters - Network Interface Settings
+  IsAssociatePublicIpAddress:
+    Description: Indicates whether to assign a public IPv4 address to an instance you launch in a VPC.
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  SecurityGroupIds:
+    Description: The IDs of the security groups for the network interface.
+    Type: List<AWS::EC2::SecurityGroup::Id>
+  SubnetId:
+    Description: The ID of the subnet.
+    Type: AWS::EC2::Subnet::Id
+  # ---------------------------- Parameters - Storage Settings
+  DeviceName:
+    Description: The device name.
+    Type: String
+    Default: /dev/xvda
+  VolumeSize:
+    Description: The size of the volume, in GiB.
+    Type: Number
+    MinValue: 8
+    MaxValue: 30
+    Default: 30
+  VolumeType:
+    Description: The volume type.
+    Type: String
+    AllowedValues:
+      - gp2
+      - io1
+      - sc1
+      - st1
+      - standard
+    Default: gp2
+
+#---------------------------- Resources
+Resources:
+  Ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      KeyName: !Ref KeyName
+      InstanceType: !Ref InstanceType
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: !Ref IsAssociatePublicIpAddress
+          DeviceIndex: '0'
+          GroupSet: !Ref SecurityGroupIds
+          SubnetId: !Ref SubnetId
+      BlockDeviceMappings:
+        - DeviceName: !Ref DeviceName
+          Ebs:
+            VolumeSize: !Ref VolumeSize
+            VolumeType: !Ref VolumeType
+      Tags:
+        -
+          Key: Name
+          Value: !Ref InstanceName
+        -
+          Key: Project
+          Value: !Ref ProjectId

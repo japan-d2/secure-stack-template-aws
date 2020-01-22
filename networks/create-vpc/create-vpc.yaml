@@ -1,0 +1,1082 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fast Track - VPC Network Template
+
+# ---------------------------- Parameters
+Parameters:
+  # ---------------------------- Parameters - Environment
+  Environment:
+    Description: Environment Type
+    Type: String
+    Default: eval
+    AllowedValues:
+      - prod
+      - mirror
+      - stage
+      - test
+      - develop
+      - eval
+      - onetime
+
+  NetworkName:
+    Description: VPC Network Name
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "[a-zA-Z0-9\\-\\:]+"
+  
+  # ---------------------------- Parameters - VPC Network
+  NetworkCidrBlock:
+    Description: Network IPv4 CIDR Block (0.0.0.0/0)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  CreateSubnets:
+    Description: Create Subnet Count
+    Type: Number
+    AllowedValues:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+    MinValue: 1
+    MaxValue: 5
+    Default: 2
+  
+  SubnetCidr1:
+    Description: "VPC Subnet CIDR #1"
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  SubnetCidr1Az:
+    Description: "Availability Zone Of VPC Subnet CIDR #1"
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  SubnetCidr2:
+    Description: "VPC Subnet CIDR #2"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  SubnetCidr2Az:
+    Description: "Availability Zone Of VPC Subnet CIDR #2"
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  SubnetCidr3:
+    Description: "VPC Subnet CIDR #3"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  SubnetCidr3Az:
+    Description: "Availability Zone Of VPC Subnet CIDR #3"
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  SubnetCidr4:
+    Description: "VPC Subnet CIDR #4"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  SubnetCidr4Az:
+    Description: "Availability Zone Of VPC Subnet CIDR #4"
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  SubnetCidr5:
+    Description: "VPC Subnet CIDR #5"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  SubnetCidr5Az:
+    Description: "Availability Zone Of VPC Subnet CIDR #5"
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: ap-northeast-1a
+
+  # ---------------------------- Parameters - VPC Services
+  CreateVPCEndpoints:
+    Description: "Create VPC EndPoints"
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  OrganizationId:
+    Description: "Organization Principal ID"
+    Type: String
+    AllowedPattern: "o-[a-z0-9]{10}"
+  CreateStandardNetworkAcl:
+    Description: "Create Standard Network ACL Entries"
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  EnableIPv6Subnet:
+    Description: "Enable IPv6 Address"
+    Type: String
+    Default: false
+    AllowedValues:
+      - false
+  EnableVPCFlowlog:
+    Description: "Enable VPC Flowlog"
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  VPCFlowlogRoleName:
+    Description: "Name of IAM Role for VPC Flowlog"
+    Type: String
+    AllowedPattern: "[\\p{ASCII}+=,.@_-]+"
+    
+  # ---------------------------- Parameters - VPC Public Network
+  CreateInternetGateway:
+    Description: "Create Internet Gateway"
+    Type: String
+    Default: 'No Gateway'
+    AllowedValues:
+      - 'Internet Gateway with NAT'
+      - 'Internet Gateway Only'
+      - 'No Gateway'
+
+  PublicNetworkCidrBlock:
+    Description: Public Network IPv4 CIDR Block. Required is Same Primary CIDR Class Range, And Same or Lower Network Address Size.
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+      
+  PublicSubnetCidr1:
+    Description: "VPC Public Subnet CIDR #1"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  
+  PublicSubnetCidr2:
+    Description: "VPC Public Subnet CIDR #2"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  
+  PublicSubnetCidr3:
+    Description: "VPC Public Subnet CIDR #3"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  
+  PublicSubnetCidr4:
+    Description: "VPC Public Subnet CIDR #4"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+  
+  PublicSubnetCidr5:
+    Description: "VPC Public Subnet CIDR #5"
+    Type: String
+    MinLength: 0
+    MaxLength: 18
+    AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  # ---------------------------- Parameters - Corporate Network
+  CorporateNetworkCidr:
+    Description: "Corporate Network CIDR"
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  CorporateInternetOutboundAddress:
+    Description: Corporate Internet Outbound IPv4 Address (0.0.0.0/32)
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+# ---------------------------- Conditions
+Conditions: 
+  CreateOfVpcEndpoint: !Equals [!Ref CreateVPCEndpoints, true]
+  CreateOfNetworkAcl: !Equals [!Ref CreateStandardNetworkAcl, true]
+  CreateOfInternetGateway: !Or
+    - !Equals [!Ref CreateInternetGateway, 'Internet Gateway with NAT']
+    - !Equals [!Ref CreateInternetGateway, 'Internet Gateway Only']
+  CreateOfNatGateway: !Equals [!Ref CreateInternetGateway, "Internet Gateway with NAT"]
+  CreateOfVPCFlowlog: !Equals [!Ref EnableVPCFlowlog, true]
+  CreateOfSubnet1: !Or
+    - !Equals [!Ref CreateSubnets, 1]
+    - !Equals [!Ref CreateSubnets, 2]
+    - !Equals [!Ref CreateSubnets, 3]
+    - !Equals [!Ref CreateSubnets, 4]
+    - !Equals [!Ref CreateSubnets, 5]
+  CreateOfSubnet2: !Or
+    - !Equals [!Ref CreateSubnets, 2]
+    - !Equals [!Ref CreateSubnets, 3]
+    - !Equals [!Ref CreateSubnets, 4]
+    - !Equals [!Ref CreateSubnets, 5]
+  CreateOfSubnet3: !Or
+    - !Equals [!Ref CreateSubnets, 3]
+    - !Equals [!Ref CreateSubnets, 4]
+    - !Equals [!Ref CreateSubnets, 5]
+  CreateOfSubnet4: !Or
+    - !Equals [!Ref CreateSubnets, 4]
+    - !Equals [!Ref CreateSubnets, 5]
+  CreateOfSubnet5: !Equals [!Ref CreateSubnets, 5]
+  CreateOfPublicNetworkAcl: !And [!Equals [!Ref CreateStandardNetworkAcl, true], !Condition CreateOfInternetGateway]
+  CreateOfPublicSubnet1: !And [!Condition CreateOfSubnet1, !Condition CreateOfInternetGateway]
+  CreateOfPublicSubnet2: !And [!Condition CreateOfSubnet2, !Condition CreateOfInternetGateway]
+  CreateOfPublicSubnet3: !And [!Condition CreateOfSubnet3, !Condition CreateOfInternetGateway]
+  CreateOfPublicSubnet4: !And [!Condition CreateOfSubnet4, !Condition CreateOfInternetGateway]
+  CreateOfPublicSubnet5: !And [!Condition CreateOfSubnet5, !Condition CreateOfInternetGateway]
+  CreateOfNatGateway1: !And [!Condition CreateOfSubnet1, !Condition CreateOfNatGateway]
+  CreateOfNatGateway2: !And [!Condition CreateOfSubnet2, !Condition CreateOfNatGateway]
+  CreateOfNatGateway3: !And [!Condition CreateOfSubnet3, !Condition CreateOfNatGateway]
+  CreateOfNatGateway4: !And [!Condition CreateOfSubnet4, !Condition CreateOfNatGateway]
+  CreateOfNatGateway5: !And [!Condition CreateOfSubnet5, !Condition CreateOfNatGateway]
+
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Environment Settings"
+        Parameters: 
+          - Environment
+          - NetworkName
+
+      - 
+        Label: 
+          default: "VPC Settings"
+        Parameters: 
+          - NetworkCidrBlock
+          - CreateSubnets
+          - SubnetCidr1
+          - SubnetCidr1Az
+          - SubnetCidr2
+          - SubnetCidr2Az
+          - SubnetCidr3
+          - SubnetCidr3Az
+          - SubnetCidr4
+          - SubnetCidr4Az
+          - SubnetCidr5
+          - SubnetCidr5Az
+
+      - 
+        Label: 
+          default: "VPC Support Services"
+        Parameters: 
+          - CreateVPCEndpoints
+          - OrganizationId
+          - CreateStandardNetworkAcl
+          - EnableIPv6Subnet
+          - EnableVPCFlowlog
+          - VPCFlowlogRoleName
+
+      - 
+        Label: 
+          default: "VPC Public Network"
+        Parameters: 
+          - CreateInternetGateway
+          - PublicNetworkCidrBlock
+          - PublicSubnetCidr1
+          - PublicSubnetCidr2
+          - PublicSubnetCidr3
+          - PublicSubnetCidr4
+          - PublicSubnetCidr5
+
+      - 
+        Label: 
+          default: "Corporate Network"
+        Parameters: 
+          - CorporateNetworkCidr
+          - CorporateInternetOutboundAddress
+
+#---------------------------- Resources
+Resources:
+  #---------------------------- Resources - VPC Network
+  VPCResource:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref NetworkCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}"
+  VPCPublicCidr:
+    Type: "AWS::EC2::VPCCidrBlock"
+    Condition: CreateOfInternetGateway
+    DependsOn: VPCInternetGateway
+    Properties:
+      VpcId: !Ref VPCResource
+      CidrBlock: !Ref PublicNetworkCidrBlock
+
+  #---------------------------- Resources - VPC Internet Gateway
+  VPCInternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Condition: CreateOfInternetGateway
+    Properties:
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.vpc.igw"
+  VPCInternetGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Condition: CreateOfInternetGateway
+    Properties:
+      VpcId: !Ref VPCResource
+      InternetGatewayId: !Ref VPCInternetGateway
+
+  #---------------------------- Resources - VPC Subnet
+  VPCSubnet1:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfSubnet1
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-1"
+        SubnetNetworkCidrBlock: !Ref SubnetCidr1
+        SubnetAZ: !Ref SubnetCidr1Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  VPCSubnet2:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfSubnet2
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-2"
+        SubnetNetworkCidrBlock: !Ref SubnetCidr2
+        SubnetAZ: !Ref SubnetCidr2Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  VPCSubnet3:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfSubnet3
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-3"
+        SubnetNetworkCidrBlock: !Ref SubnetCidr3
+        SubnetAZ: !Ref SubnetCidr3Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  VPCSubnet4:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfSubnet4
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-4"
+        SubnetNetworkCidrBlock: !Ref SubnetCidr4
+        SubnetAZ: !Ref SubnetCidr4Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  VPCSubnet5:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfSubnet5
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-5"
+        SubnetNetworkCidrBlock: !Ref SubnetCidr5
+        SubnetAZ: !Ref SubnetCidr5Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+        
+  #---------------------------- Resources - VPC Public Subnet
+  PublicVPCSubnet1:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfPublicSubnet1
+    DependsOn: PublicVPCRouteTable
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-1-public"
+        SubnetNetworkCidrBlock: !Ref PublicSubnetCidr1
+        SubnetAZ: !Ref SubnetCidr1Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  PublicVPCSubnet2:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfPublicSubnet2
+    DependsOn: PublicVPCRouteTable
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-2-public"
+        SubnetNetworkCidrBlock: !Ref PublicSubnetCidr2
+        SubnetAZ: !Ref SubnetCidr2Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  PublicVPCSubnet3:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfPublicSubnet3
+    DependsOn: PublicVPCRouteTable
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-3-public"
+        SubnetNetworkCidrBlock: !Ref PublicSubnetCidr3
+        SubnetAZ: !Ref SubnetCidr3Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  PublicVPCSubnet4:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfPublicSubnet4
+    DependsOn: PublicVPCRouteTable
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-4-public"
+        SubnetNetworkCidrBlock: !Ref PublicSubnetCidr4
+        SubnetAZ: !Ref SubnetCidr4Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+  PublicVPCSubnet5:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfPublicSubnet5
+    DependsOn: PublicVPCRouteTable
+    Properties:
+      TemplateURL: create-subnet.yaml
+      Parameters:
+        Environment: !Ref Environment
+        VPCID: !Ref VPCResource
+        NetworkName: !Ref NetworkName
+        SubnetName: !Sub "${NetworkName}-5-public"
+        SubnetNetworkCidrBlock: !Ref PublicSubnetCidr5
+        SubnetAZ: !Ref SubnetCidr5Az
+        EnableIPv6Subnet: !Ref EnableIPv6Subnet
+        SubnetNetworkCidrBlockIPv6: ''
+
+  #---------------------------- Resources - VPC NAT Gateway
+  VPCNatGateway1:
+    Type: "AWS::EC2::NatGateway"
+    Condition: CreateOfNatGateway1
+    Properties:
+      AllocationId: !GetAtt VPCElasticIPNatGateway1.AllocationId
+      SubnetId: !GetAtt PublicVPCSubnet1.Outputs.SubnetId
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-1"
+  VPCElasticIPNatGateway1:
+    Type: "AWS::EC2::EIP"
+    Condition: CreateOfNatGateway1
+    Properties:
+      Domain: vpc
+  VPCNatGateway2:
+    Type: "AWS::EC2::NatGateway"
+    Condition: CreateOfNatGateway2
+    Properties:
+      AllocationId: !GetAtt VPCElasticIPNatGateway2.AllocationId
+      SubnetId: !GetAtt PublicVPCSubnet2.Outputs.SubnetId
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-2"
+  VPCElasticIPNatGateway2:
+    Type: "AWS::EC2::EIP"
+    Condition: CreateOfNatGateway2
+    Properties:
+      Domain: vpc
+  VPCNatGateway3:
+    Type: "AWS::EC2::NatGateway"
+    Condition: CreateOfNatGateway3
+    Properties:
+      AllocationId: !GetAtt VPCElasticIPNatGateway3.AllocationId
+      SubnetId: !GetAtt PublicVPCSubnet3.Outputs.SubnetId
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-3"
+  VPCElasticIPNatGateway3:
+    Type: "AWS::EC2::EIP"
+    Condition: CreateOfNatGateway3
+    Properties:
+      Domain: vpc
+  VPCNatGateway4:
+    Type: "AWS::EC2::NatGateway"
+    Condition: CreateOfNatGateway4
+    Properties:
+      AllocationId: !GetAtt VPCElasticIPNatGateway4.AllocationId
+      SubnetId: !GetAtt PublicVPCSubnet4.Outputs.SubnetId
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-4"
+  VPCElasticIPNatGateway4:
+    Type: "AWS::EC2::EIP"
+    Condition: CreateOfNatGateway4
+    Properties:
+      Domain: vpc
+  VPCNatGateway5:
+    Type: "AWS::EC2::NatGateway"
+    Condition: CreateOfNatGateway5
+    Properties:
+      AllocationId: !GetAtt VPCElasticIPNatGateway5.AllocationId
+      SubnetId: !GetAtt PublicVPCSubnet5.Outputs.SubnetId
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-5"
+  VPCElasticIPNatGateway5:
+    Type: "AWS::EC2::EIP"
+    Condition: CreateOfNatGateway5
+    Properties:
+      Domain: vpc
+
+  #---------------------------- Resources - VPC Route Table
+  VPCRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Internal"
+  VPCRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateOfNatGateway1
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Internal-1"
+  VPCRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateOfNatGateway2
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Internal-2"
+  VPCRouteTable3:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateOfNatGateway3
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Internal-3"
+  VPCRouteTable4:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateOfNatGateway4
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Internal-4"
+  VPCRouteTable5:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateOfNatGateway5
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Internal-5"
+  PublicVPCRouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateOfInternetGateway
+    DependsOn: VPCPublicCidr
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.RouteTable.Public"
+  PublicVPCRouteToInternetGateway:
+    Type: AWS::EC2::Route
+    Condition: CreateOfInternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref PublicVPCRouteTable
+      GatewayId: !Ref VPCInternetGateway
+  VPCRouteToNatGateway1:
+    Type: AWS::EC2::Route
+    Condition: CreateOfNatGateway1
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref VPCRouteTable1
+      NatGatewayId: !Ref VPCNatGateway1
+  VPCRouteToNatGateway2:
+    Type: AWS::EC2::Route
+    Condition: CreateOfNatGateway2
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref VPCRouteTable2
+      NatGatewayId: !Ref VPCNatGateway2
+  VPCRouteToNatGateway3:
+    Type: AWS::EC2::Route
+    Condition: CreateOfNatGateway3
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref VPCRouteTable3
+      NatGatewayId: !Ref VPCNatGateway3
+  VPCRouteToNatGateway4:
+    Type: AWS::EC2::Route
+    Condition: CreateOfNatGateway4
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref VPCRouteTable4
+      NatGatewayId: !Ref VPCNatGateway4
+  VPCRouteToNatGateway5:
+    Type: AWS::EC2::Route
+    Condition: CreateOfNatGateway5
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref VPCRouteTable5
+      NatGatewayId: !Ref VPCNatGateway5
+
+  #---------------------------- Resources - VPC Route Table Association
+  VPCRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfSubnet1
+    Properties:
+      RouteTableId:
+        Fn::If:
+          - CreateOfNatGateway1
+          - !Ref VPCRouteTable1
+          - !Ref VPCRouteTable
+      SubnetId: !GetAtt VPCSubnet1.Outputs.SubnetId
+  VPCRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfSubnet2
+    Properties:
+      RouteTableId:
+        Fn::If:
+          - CreateOfNatGateway2
+          - !Ref VPCRouteTable2
+          - !Ref VPCRouteTable
+      SubnetId: !GetAtt VPCSubnet2.Outputs.SubnetId
+  VPCRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfSubnet3
+    Properties:
+      RouteTableId:
+        Fn::If:
+          - CreateOfNatGateway3
+          - !Ref VPCRouteTable3
+          - !Ref VPCRouteTable
+      SubnetId: !GetAtt VPCSubnet3.Outputs.SubnetId
+  VPCRouteTableAssociation4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfSubnet4
+    Properties:
+      RouteTableId:
+        Fn::If:
+          - CreateOfNatGateway4
+          - !Ref VPCRouteTable4
+          - !Ref VPCRouteTable
+      SubnetId: !GetAtt VPCSubnet4.Outputs.SubnetId
+  VPCRouteTableAssociation5:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfSubnet5
+    Properties:
+      RouteTableId:
+        Fn::If:
+          - CreateOfNatGateway5
+          - !Ref VPCRouteTable5
+          - !Ref VPCRouteTable
+      SubnetId: !GetAtt VPCSubnet5.Outputs.SubnetId
+      
+  #---------------------------- Resources - VPC Public Route Table Association
+  PublicVPCRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfPublicSubnet1
+    Properties:
+      RouteTableId: !Ref PublicVPCRouteTable
+      SubnetId: !GetAtt PublicVPCSubnet1.Outputs.SubnetId
+  PublicVPCRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfPublicSubnet2
+    Properties:
+      RouteTableId: !Ref PublicVPCRouteTable
+      SubnetId: !GetAtt PublicVPCSubnet2.Outputs.SubnetId
+  PublicVPCRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfPublicSubnet3
+    Properties:
+      RouteTableId: !Ref PublicVPCRouteTable
+      SubnetId: !GetAtt PublicVPCSubnet3.Outputs.SubnetId
+  PublicVPCRouteTableAssociation4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfPublicSubnet4
+    Properties:
+      RouteTableId: !Ref PublicVPCRouteTable
+      SubnetId: !GetAtt PublicVPCSubnet4.Outputs.SubnetId
+  PublicVPCRouteTableAssociation5:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateOfPublicSubnet5
+    Properties:
+      RouteTableId: !Ref PublicVPCRouteTable
+      SubnetId: !GetAtt PublicVPCSubnet5.Outputs.SubnetId
+
+  #---------------------------- Resources - VPC Network ACL
+  VPCNetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Condition: CreateOfNetworkAcl
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.NetworkAcl"
+  VPCNetworkAclEntries:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfNetworkAcl
+    Properties:
+      TemplateURL: create-networkacl.yaml
+      Parameters:
+        CorporateNetworkCidr: !Ref CorporateNetworkCidr
+        NetworkAclID: !Ref VPCNetworkAcl
+        NetworkCidrBlock: !Ref NetworkCidrBlock
+        PublicNetworkCidrBlock: ""
+
+  #---------------------------- Resources - VPC Public Network ACL
+  PublicVPCNetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Condition: CreateOfPublicNetworkAcl
+    Properties:
+      VpcId: !Ref VPCResource
+      Tags:
+        - 
+          Key: Environment
+          Value: !Ref Environment
+        - 
+          Key: Name
+          Value: !Sub "${Environment}.${NetworkName}.NetworkAcl.Public"
+  PublicVPCNetworkAclEntries:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfPublicNetworkAcl
+    Properties:
+      TemplateURL: create-networkacl.yaml
+      Parameters:
+        CorporateNetworkCidr: !Ref CorporateNetworkCidr
+        NetworkAclID: !Ref PublicVPCNetworkAcl
+        NetworkCidrBlock: !Ref NetworkCidrBlock
+        PublicNetworkCidrBlock: !If [CreateOfInternetGateway, !Ref PublicNetworkCidrBlock, ""]
+        
+  #---------------------------- Resources - VPC Network ACL Association
+  VPCNetworkAclAssociation1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfSubnet1
+    Properties:
+      SubnetId: !GetAtt VPCSubnet1.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfNetworkAcl, !Ref VPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  VPCNetworkAclAssociation2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfSubnet2
+    Properties:
+      SubnetId: !GetAtt VPCSubnet2.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfNetworkAcl, !Ref VPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  VPCNetworkAclAssociation3:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfSubnet3
+    Properties:
+      SubnetId: !GetAtt VPCSubnet3.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfNetworkAcl, !Ref VPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  VPCNetworkAclAssociation4:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfSubnet4
+    Properties:
+      SubnetId: !GetAtt VPCSubnet4.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfNetworkAcl, !Ref VPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  VPCNetworkAclAssociation5:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfSubnet5
+    Properties:
+      SubnetId: !GetAtt VPCSubnet5.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfNetworkAcl, !Ref VPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+        
+  #---------------------------- Resources - VPC Public Network ACL Association
+  PublicVPCNetworkAclAssociation1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfPublicSubnet1
+    Properties:
+      SubnetId: !GetAtt PublicVPCSubnet1.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfPublicNetworkAcl, !Ref PublicVPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  PublicVPCNetworkAclAssociation2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfPublicSubnet2
+    Properties:
+      SubnetId: !GetAtt PublicVPCSubnet2.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfPublicNetworkAcl, !Ref PublicVPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  PublicVPCNetworkAclAssociation3:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfPublicSubnet3
+    Properties:
+      SubnetId: !GetAtt PublicVPCSubnet3.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfPublicNetworkAcl, !Ref PublicVPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  PublicVPCNetworkAclAssociation4:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfPublicSubnet4
+    Properties:
+      SubnetId: !GetAtt PublicVPCSubnet4.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfPublicNetworkAcl, !Ref PublicVPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+  PublicVPCNetworkAclAssociation5:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreateOfPublicSubnet5
+    Properties:
+      SubnetId: !GetAtt PublicVPCSubnet5.Outputs.SubnetId
+      NetworkAclId: !If [CreateOfPublicNetworkAcl, !Ref PublicVPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+
+  #---------------------------- Resources - Common Security Groups
+  VPCSecurityGroup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: create-securitygroup.yaml
+      Parameters:
+        VPCID: !Ref VPCResource
+        LocalSegmentCidr: !GetAtt VPCResource.CidrBlock
+        PublicSegmentCidr: !Ref PublicNetworkCidrBlock
+        CorpNetworkCidr: !Ref CorporateNetworkCidr
+        CorporateInternetOutboundAddress: !Ref CorporateInternetOutboundAddress
+
+  #---------------------------- Resources - VPC Endpoint Service
+  VPCEndpointServices:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateOfVpcEndpoint
+    DependsOn: VPCSecurityGroup
+    Properties:
+      TemplateURL: create-vpcendpoint.yaml
+      Parameters:
+        Environment: !Ref Environment
+        OrganizationId: !Ref OrganizationId
+        VPCID: !Ref VPCResource
+        NetworkCidr: !GetAtt VPCResource.CidrBlock
+        PublicNetworkCidr: !Ref PublicNetworkCidrBlock
+        RouteTableIDs: !Join
+          - ','
+          -
+            - Fn::If: [CreateOfNatGateway, !Ref "AWS::NoValue", !Ref VPCRouteTable]
+            - Fn::If: [CreateOfNatGateway1, !Ref VPCRouteTable1, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfNatGateway2, !Ref VPCRouteTable2, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfNatGateway3, !Ref VPCRouteTable3, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfNatGateway4, !Ref VPCRouteTable4, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfNatGateway5, !Ref VPCRouteTable5, !Ref "AWS::NoValue"]
+        SubnetIDs: !Join
+          - ','
+          -
+            - Fn::If: [CreateOfSubnet1, !GetAtt VPCSubnet1.Outputs.SubnetId, ""]
+            - Fn::If: [CreateOfSubnet2, !GetAtt VPCSubnet2.Outputs.SubnetId, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfSubnet3, !GetAtt VPCSubnet3.Outputs.SubnetId, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfSubnet4, !GetAtt VPCSubnet4.Outputs.SubnetId, !Ref "AWS::NoValue"]
+            - Fn::If: [CreateOfSubnet5, !GetAtt VPCSubnet5.Outputs.SubnetId, !Ref "AWS::NoValue"]
+
+  #---------------------------- Resources - VPC FlowLogs
+  VPCFlowLogs:
+    Type: AWS::EC2::FlowLog
+    Condition: CreateOfVPCFlowlog
+    Properties:
+      ## NOTE(sinokuma): VPCFlowLogsRole is required
+      DeliverLogsPermissionArn: !Sub arn:aws:iam::${AWS::AccountId}:role/${VPCFlowlogRoleName}
+      LogDestinationType: cloud-watch-logs
+      LogGroupName: !Sub "${Environment}-${NetworkName}-vpc-flow-logs"
+      ResourceId: !Ref VPCResource
+      ResourceType: VPC
+      TrafficType: ALL
+
+#---------------------------- Output
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPCResource
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:id"
+  SubnetCount:
+    Description: VPC Subnet Count
+    Value: !Ref CreateSubnets
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:subnet:count"
+  SubnetIDs:
+    Description: VPC Subnet IDs
+    Value: !Join
+      - ','
+      -
+        - Fn::If: [CreateOfSubnet1, !GetAtt VPCSubnet1.Outputs.SubnetId, ""]
+        - Fn::If: [CreateOfSubnet2, !GetAtt VPCSubnet2.Outputs.SubnetId, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfSubnet3, !GetAtt VPCSubnet3.Outputs.SubnetId, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfSubnet4, !GetAtt VPCSubnet4.Outputs.SubnetId, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfSubnet5, !GetAtt VPCSubnet5.Outputs.SubnetId, !Ref "AWS::NoValue"]
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:subnet:ids"
+  NetworkCidr:
+    Description: VPC Network Address
+    Value: !GetAtt VPCResource.CidrBlock
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:address"
+  RouteTable:
+    Description: VPC Route Table ID
+    Condition: CreateOfNatGateway
+    Value: !Join
+      - ','
+      -
+        - Fn::If: [CreateOfNatGateway, !Ref "AWS::NoValue", !Ref VPCRouteTable]
+        - Fn::If: [CreateOfNatGateway1, !Ref VPCRouteTable1, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway2, !Ref VPCRouteTable2, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway3, !Ref VPCRouteTable3, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway4, !Ref VPCRouteTable4, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway5, !Ref VPCRouteTable5, !Ref "AWS::NoValue"]
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:routetable:internal"
+  NetworkAcl:
+    Description: VPC Network ACL ID
+    Value: !If [CreateOfNetworkAcl, !Ref VPCNetworkAcl, !GetAtt VPCResource.DefaultNetworkAcl]
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:acl"
+  PublicInternetGateway:
+    Description: VPC Internet Gateway ID
+    Condition: CreateOfInternetGateway
+    Value: !Ref VPCInternetGateway
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:igw"
+  NatGatewayIDs:
+    Description: NAT Gateway IDs
+    Condition: CreateOfNatGateway
+    Value: !Join
+      - ','
+      -
+        - Fn::If: [CreateOfNatGateway1, !Ref VPCNatGateway1, ""]
+        - Fn::If: [CreateOfNatGateway2, !Ref VPCNatGateway2, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway3, !Ref VPCNatGateway3, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway4, !Ref VPCNatGateway4, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfNatGateway5, !Ref VPCNatGateway5, !Ref "AWS::NoValue"]
+
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:natgw"
+  PublicSubnetIDs:
+    Description: VPC Public Subnet IDs
+    Condition: CreateOfInternetGateway
+    Value: !Join
+      - ','
+      -
+        - Fn::If: [CreateOfPublicSubnet1, !GetAtt PublicVPCSubnet1.Outputs.SubnetId, ""]
+        - Fn::If: [CreateOfPublicSubnet2, !GetAtt PublicVPCSubnet2.Outputs.SubnetId, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfPublicSubnet3, !GetAtt PublicVPCSubnet3.Outputs.SubnetId, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfPublicSubnet4, !GetAtt PublicVPCSubnet4.Outputs.SubnetId, !Ref "AWS::NoValue"]
+        - Fn::If: [CreateOfPublicSubnet5, !GetAtt PublicVPCSubnet5.Outputs.SubnetId, !Ref "AWS::NoValue"]
+
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:subnet:public:ids"
+  PublicRouteTable:
+    Description: VPC Public Route Table ID
+    Condition: CreateOfInternetGateway
+    Value: !Ref PublicVPCRouteTable
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:routetable:public"
+  PublicNetworkAcl:
+    Description: VPC Public Network ACL ID
+    Condition: CreateOfPublicNetworkAcl
+    Value: !Ref PublicVPCNetworkAcl
+    Export:
+      Name: !Sub "${Environment}:${NetworkName}:vpc:acl:public"
