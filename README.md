@@ -68,4 +68,4 @@ IAMロールを作成した場合は、原則としてロールのOutputは3点�
 
 ## Licencing
 
-このプロジェクトのテンプレートは MIT License でライセンスされます。詳しくは [LICENSE](License) を参照してください。
+このプロジェクトのテンプレートは MIT License でライセンスされます。詳しくは [LICENSE](LICENSE) を参照してください。
