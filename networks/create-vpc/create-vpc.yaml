@@ -113,7 +113,7 @@ Parameters:
 
   # ---------------------------- Parameters - VPC Services
   CreateVPCEndpoints:
-    Description: "Create VPC EndPoints"
+    Description: "Create VPC Endpoints"
     Type: String
     Default: true
     AllowedValues:
