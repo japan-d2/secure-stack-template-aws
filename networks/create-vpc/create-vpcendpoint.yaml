@@ -483,3 +483,58 @@ Outputs:
     Value: !Ref EndpointDynamoDB
     Export:
       Name: !Sub ${Environment}:${VPCID}:endpoint:dynamodb
+  KMSEndpointID:
+    Description: VPC Endpoint - KMS Interface Endpoint ID
+    Value: !Ref EndpointKMS
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:kms"
+  STSEndpointID:
+    Description: VPC Endpoint - STS Interface Endpoint ID
+    Value: !Ref EndpointSTS
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:sts"
+  SSMEndpointID:
+    Description: VPC Endpoint - SSM Interface Endpoint ID
+    Value: !Ref EndpointSSM
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:ssm"
+  SSMMessagesEndpointID:
+    Description: VPC Endpoint - SSMMessages Interface Endpoint ID
+    Value: !Ref EndpointSSMMessages
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:ssmmessages"
+  EC2EndpointID:
+    Description: VPC Endpoint - EC2 Interface Endpoint ID
+    Value: !Ref EndpointEC2
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:ec2"
+  EC2MessagesEndpointID:
+    Description: VPC Endpoint - EC2Messages Interface Endpoint ID
+    Value: !Ref EndpointEC2Messages
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:ec2messages"
+  SecretsManagerEndpointID:
+    Description: VPC Endpoint - SecretsManager Interface Endpoint ID
+    Value: !Ref EndpointSecretsManager
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:secretsmanager"
+  MonitorEndpointID:
+    Description: VPC Endpoint - Monitor Interface Endpoint ID
+    Value: !Ref EndpointMonitor
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:monitor"
+  LogsEndpointID:
+    Description: VPC Endpoint - Logs Interface Endpoint ID
+    Value: !Ref EndpointLogs
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:logs"
+  EventsEndpointID:
+    Description: VPC Endpoint - Events Interface Endpoint ID
+    Value: !Ref EndpointEvents
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:events"
+  ECREndpointID:
+    Description: VPC Endpoint - ECR Interface Endpoint ID
+    Value: !Ref EndpointECR
+    Export:
+      Name: !Sub "${Environment}:${VPCID}:endpoint:ecr"
