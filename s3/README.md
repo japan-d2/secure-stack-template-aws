@@ -18,7 +18,7 @@ Secure by Defalutを基本として、パブリックアクセスの禁止や、
 |EnableVersioning|S3バージョニング機能有効要否|文字列|デフォルト値: TRUE
 |AuthorizedVpcEndpointId|特定のVPCエンドポイントからのアクセスに制限|文字列|必要時に既存のVPCエンドポイントIDを入力　*2
 |NoncurrentVersionExpirationInDays|古いバージョンのオブジェクト保持期間(Days)|数値|前提:S3バージョニング機能を有効にしていること
-|KmsKeyArn|特定の暗号化用KMSキー指定|文字列|未入力時は新規KMSキーが作成される
+|KmsKeyArn|特定の暗号化用KMSキー指定|文字列|暗号化用KMSキーARNを指定。未入力時は新規KMSキーが作成される
 |LoggingDestinationBucketName|アクセスログ保存バケットの指定|文字列|必要時に既存のS3バケット名を入力
 
 *1 デフォルトのバケットポリシーをアタッチしない場合は、他のテンプレートにてバケットポリシーをアタッチする。  
