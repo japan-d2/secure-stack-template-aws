@@ -49,6 +49,9 @@ CodeCommitに保存されたDockerfileに従ってコンテナイメージをビ
   CloudWatchEventRoleId:  
 
 ## Limitations
+
+ - 本テンプレートは、IAMロールの作成を行います。
+ 
 #### デプロイ手順サンプル
 
 GUIまたは、CLIからデプロイが可能です。
@@ -105,8 +108,6 @@ ECRのリポジトリにアップロードされたDockerコンテナイメー�
   CloudWatchEventToInvokePipelineRoleId:
 
 ## Limitations
-
- - 本テンプレートは、IAMロールの作成を行います。
 
 #### デプロイ手順サンプル
 
