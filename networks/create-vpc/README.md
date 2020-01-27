@@ -33,7 +33,7 @@ NestedStackのデプロイには [packageコマンド](https://docs.aws.amazon.c
 |CreateStandardNetworkAcl|ネットワークACL作成要否|文字列|デフォルト値:True|
 |EnableIPv6Subnet|IPv6使用要否|文字列|デフォルト値:False|
 |EnableVPCFlowlog|VPCフローログ使用要否|文字列|デフォルト値:True|
-|VPCFlowlogRoleName|VPCフローログ用IAMロール|文字列|既存のIAMロールからプルダウンで選択|
+|VPCFlowlogRoleName|VPCフローログ用IAMロール|文字列|CloudWatch LogsにFlow|
 |-VPCパブリックネットワーク設定-|
 |CreateInternetGateway|インターネットゲートウェイ要否|文字列|デフォルト値: No Gateway|
 |PublicNetworkCidrBlock|パブリックネットワークCIDR|文字列|必要に応じて入力 *3|
