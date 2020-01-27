@@ -70,7 +70,7 @@ IAMロールを作成した場合は、原則としてロールのOutputは3点�
 
 テンプレートの実行に必要な環境は以下を想定しています。
 
-- AWS Organization が有効になっている
+- AWS Organizations が有効になっている
 
 ## Licencing
 
