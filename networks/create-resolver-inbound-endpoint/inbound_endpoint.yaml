@@ -10,7 +10,7 @@ Parameters:
     Default: 3
   ResolverEndpointName:
     Type: String
-    MinValue: 1
+    MinLength: 1
   Subnet1Id:
     Type: AWS::EC2::Subnet::Id
   Subnet2Id:
