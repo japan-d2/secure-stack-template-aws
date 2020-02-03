@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Fast Track - VPC EndPoints Template
+Description: Fast Track - VPC Endpoints Template
 
 # ---------------------------- Parameters
 Parameters:
@@ -69,7 +69,7 @@ Metadata:
 #---------------------------- Resources
 Resources:
   #---------------------------- Resources - Gateway Endpoint
-  EndPointS3:
+  EndpointS3:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -140,7 +140,7 @@ Resources:
               - "s3:PutObject"
             Resource: !Sub arn:aws:s3:::prod-${AWS::Region}-starport-layer-bucket/*
 
-  EndPointDynamoDB:
+  EndpointDynamoDB:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -209,7 +209,7 @@ Resources:
               - !Sub arn:aws:dynamodb::${AWS::AccountId}:global-table/*
 
   #---------------------------- Resources - Interface Endpoint
-  EndPointKMS:
+  EndpointKMS:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -222,7 +222,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointSTS:
+  EndpointSTS:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -235,7 +235,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointSSM:
+  EndpointSSM:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -248,7 +248,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointSSMMessages:
+  EndpointSSMMessages:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -261,7 +261,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointEC2:
+  EndpointEC2:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -274,7 +274,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointEC2Messages:
+  EndpointEC2Messages:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -287,7 +287,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointSecretsManager:
+  EndpointSecretsManager:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -331,7 +331,7 @@ Resources:
             Condition:
               StringNotLike:
                 secretsmanager:KmsKeyId: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*
-  EndPointMonitor:
+  EndpointMonitor:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -344,7 +344,7 @@ Resources:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
       SecurityGroupIds: [!GetAtt AllowLocalSegment.GroupId]
-  EndPointLogs:
+  EndpointLogs:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -399,7 +399,7 @@ Resources:
               - logs:GetLogEvents
               - logs:PutLogEvents
             NotResource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*
-  EndPointEvents:
+  EndpointEvents:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -419,7 +419,7 @@ Resources:
             Action: "*"
             Resource:
               - !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/*
-  EndpointEcr:
+  EndpointECR:
     Type: AWS::EC2::VPCEndpoint
     Properties:
       VpcId: !Ref VPCID
@@ -473,13 +473,13 @@ Resources:
 
 #---------------------------- Output
 Outputs:
-  S3EndPointID:
-    Description: VPC EndPoint - S3 Gateway EndPoint ID
-    Value: !Ref EndPointS3
+  S3EndpointID:
+    Description: VPC Endpoint - S3 Gateway Endpoint ID
+    Value: !Ref EndpointS3
     Export:
       Name: !Sub "${Environment}:${VPCID}:endpoint:s3"
-  DynamoDBEndPointID:
-    Description: VPC EndPoint - DynamoDB Gateway EndPoint ID
-    Value: !Ref EndPointDynamoDB
+  DynamoDBEndpointID:
+    Description: VPC Endpoint - DynamoDB Gateway Endpoint ID
+    Value: !Ref EndpointDynamoDB
     Export:
       Name: !Sub ${Environment}:${VPCID}:endpoint:dynamodb
