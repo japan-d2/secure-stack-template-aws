@@ -33,7 +33,7 @@ Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
                         .compact
 
   dirname = FileUtils.mkdir_p(File.join(out_dir, File.dirname(template_file)))
-  out_file = File.open(File.join(dirname, File.basename(template_file)), 'w')
-
-  YAML.dump(overridden, out_file)
+  File.write(
+    File.join(dirname, File.basename(template_file)), YAML.dump(overridden)
+  )
 end
