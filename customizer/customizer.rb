@@ -9,16 +9,16 @@ template_override_config_file = './template_override_config.yaml'
 out_dir = './out'
 template_dir = '/workdir'
 config = YAML.load_file(['/workdir', template_override_config_file].join('/'))
-ROOT_KEYS = [
-  'AWSTemplateFormatVersion',
-  'Description',
-  'Metadata',
-  'Parameters',
-  'Mappings',
-  'Conditions',
-  'Transform',
-  'Resources',
-  'Outputs'
+ROOT_KEYS = %w[
+  AWSTemplateFormatVersion
+  Description
+  Metadata
+  Parameters
+  Mappings
+  Conditions
+  Transform
+  Resources
+  Outputs
 ]
 
 Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
