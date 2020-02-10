@@ -1,0 +1,18 @@
+backup:
+  create-backup.yaml:
+    Metadata:
+      ProductName: Operations - AWS Backup Policy
+      ProductDescription: Standard EBS backup creation template
+      ProductVersion: 0.1.3
+      VersionDescription: Adopt backports
+networks:
+  create-resolver-inbound-endpoint:
+    inbound_endpoint.yaml:
+      Metadata:
+        ProductName: Network - Route53Resolver Inbound Endpoint
+        ProductDescription: Template for inbound endpoint
+        ProductVersion: 0.1.4
+        VersionDescription: Fix parameter condition
+      Parameters:
+        ResolverEndpointName:
+          Default: japan-d2-com_route-resolver-inbound-endpoint
