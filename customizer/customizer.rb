@@ -28,9 +28,9 @@ Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
 
   template.deep_merge!(overriding_object)
   overridden = ROOT_KEYS.clone
-                         .map { |e| { e => template[e] } }
-                         .reduce { |result, e| result.merge(e) }
-                         .compact
+                        .map { |e| { e => template[e] } }
+                        .reduce { |result, e| result.merge(e) }
+                        .compact
 
   dirname = FileUtils.mkdir_p(File.join(out_dir, File.dirname(template_file)))
   out_file = File.open(File.join(dirname, File.basename(template_file)), 'w')
