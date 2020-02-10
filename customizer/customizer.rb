@@ -21,7 +21,7 @@ ROOT_KEYS = [
   'Outputs'
 ]
 
-Dir.glob('**/*.y*ml', base: template_dir) { |template_file|
+Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
   template = YAML.load_file([template_dir, template_file].join('/'))
   overriding_object = config.dig(*template_file.split('/'))
   next if overriding_object.nil?
@@ -36,4 +36,4 @@ Dir.glob('**/*.y*ml', base: template_dir) { |template_file|
   out_file = File.open([dirname, File.basename(template_file)].join('/'), 'w')
 
   YAML.dump(overridden, out_file)
-}
+end
