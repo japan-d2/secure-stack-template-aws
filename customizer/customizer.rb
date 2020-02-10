@@ -22,7 +22,7 @@ ROOT_KEYS = [
 ]
 
 Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
-  template = YAML.load_file([template_dir, template_file].join('/'))
+  template = YAML.load_file(File.join(template_dir, template_file))
   overriding_object = config.dig(*template_file.split('/'))
   next if overriding_object.nil?
 
@@ -32,8 +32,8 @@ Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
                          .reduce { |result, e| result.merge(e) }
                          .compact
 
-  dirname = FileUtils.mkdir_p([out_dir, File.dirname(template_file)].join('/'))
-  out_file = File.open([dirname, File.basename(template_file)].join('/'), 'w')
+  dirname = FileUtils.mkdir_p(File.join(out_dir, File.dirname(template_file)))
+  out_file = File.open(File.join(dirname, File.basename(template_file)), 'w')
 
   YAML.dump(overridden, out_file)
 end
