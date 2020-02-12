@@ -27,7 +27,7 @@ Parameters:
     Type: String
   SecurityGroupIds:
     Type: List<AWS::EC2::SecurityGroup::Id>
-    
+
 # ---------------------------- Conditions
 Conditions:
   UseSubnet2Id: !Equals [!Ref NumberOfSubnets, 2]

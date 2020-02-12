@@ -1,6 +1,64 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Fast Track - VPC Network Template
 
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Environment Settings"
+        Parameters: 
+          - Environment
+          - NetworkName
+
+      - 
+        Label: 
+          default: "VPC Settings"
+        Parameters: 
+          - NetworkCidrBlock
+          - CreateSubnets
+          - SubnetCidr1
+          - SubnetCidr1Az
+          - SubnetCidr2
+          - SubnetCidr2Az
+          - SubnetCidr3
+          - SubnetCidr3Az
+          - SubnetCidr4
+          - SubnetCidr4Az
+          - SubnetCidr5
+          - SubnetCidr5Az
+
+      - 
+        Label: 
+          default: "VPC Support Services"
+        Parameters: 
+          - CreateVPCEndpoints
+          - OrganizationId
+          - CreateStandardNetworkAcl
+          - EnableIPv6Subnet
+          - EnableVPCFlowlog
+          - VPCFlowlogRoleName
+
+      - 
+        Label: 
+          default: "VPC Public Network"
+        Parameters: 
+          - CreateInternetGateway
+          - PublicNetworkCidrBlock
+          - PublicSubnetCidr1
+          - PublicSubnetCidr2
+          - PublicSubnetCidr3
+          - PublicSubnetCidr4
+          - PublicSubnetCidr5
+
+      - 
+        Label: 
+          default: "Corporate Network"
+        Parameters: 
+          - CorporateNetworkCidr
+          - CorporateInternetOutboundAddress
+
 # ---------------------------- Parameters
 Parameters:
   # ---------------------------- Parameters - Environment
@@ -262,64 +320,6 @@ Conditions:
   CreateOfNatGateway3: !And [!Condition CreateOfSubnet3, !Condition CreateOfNatGateway]
   CreateOfNatGateway4: !And [!Condition CreateOfSubnet4, !Condition CreateOfNatGateway]
   CreateOfNatGateway5: !And [!Condition CreateOfSubnet5, !Condition CreateOfNatGateway]
-
-# ---------------------------- Metadata
-Metadata:
-  AWS::CloudFormation::Interface: 
-    ParameterGroups: 
-      - 
-        Label: 
-          default: "Environment Settings"
-        Parameters: 
-          - Environment
-          - NetworkName
-
-      - 
-        Label: 
-          default: "VPC Settings"
-        Parameters: 
-          - NetworkCidrBlock
-          - CreateSubnets
-          - SubnetCidr1
-          - SubnetCidr1Az
-          - SubnetCidr2
-          - SubnetCidr2Az
-          - SubnetCidr3
-          - SubnetCidr3Az
-          - SubnetCidr4
-          - SubnetCidr4Az
-          - SubnetCidr5
-          - SubnetCidr5Az
-
-      - 
-        Label: 
-          default: "VPC Support Services"
-        Parameters: 
-          - CreateVPCEndpoints
-          - OrganizationId
-          - CreateStandardNetworkAcl
-          - EnableIPv6Subnet
-          - EnableVPCFlowlog
-          - VPCFlowlogRoleName
-
-      - 
-        Label: 
-          default: "VPC Public Network"
-        Parameters: 
-          - CreateInternetGateway
-          - PublicNetworkCidrBlock
-          - PublicSubnetCidr1
-          - PublicSubnetCidr2
-          - PublicSubnetCidr3
-          - PublicSubnetCidr4
-          - PublicSubnetCidr5
-
-      - 
-        Label: 
-          default: "Corporate Network"
-        Parameters: 
-          - CorporateNetworkCidr
-          - CorporateInternetOutboundAddress
 
 #---------------------------- Resources
 Resources:
