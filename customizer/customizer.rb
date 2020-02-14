@@ -5,12 +5,14 @@ require 'yaml'
 require 'fileutils'
 require 'active_support/core_ext/hash/deep_merge'
 
-template_override_config_file = './template_override_config.yaml'
-out_dir = './out'
+template_override_config_file = 'template_override_config.yaml'
+out_dir = 'out'
 template_dir = '/workdir'
 config = YAML.load_file(File.join(['/workdir', template_override_config_file]))
 
-Dir.glob('**/*.y*ml', base: template_dir) do |template_file|
+Dir.glob('**/*.y*ml', base: template_dir)
+   .grep_v(%r{#{out_dir}/})
+   .grep_v(template_override_config_file).each do |template_file|
   overriding_object = config.dig(*template_file.split('/'))
   next if overriding_object.nil?
 
