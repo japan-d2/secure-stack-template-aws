@@ -1,0 +1,38 @@
+name: Transmit Changed Templates
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - closed
+    paths:
+      - '**/*.ya?ml'
+      - '!.github/**'
+env:
+  repository: ${{ secrets.INTERNAL_ORGANIZATION_REPO }}
+  event_type: changed_templates
+jobs:
+  Transmit:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Filter changed files
+        run: |
+          merge_commit_data=$(curl -X GET -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+                      -H "Content-Type: application/json" \
+                      https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${{ github.event.pull_request.merge_commit_sha }})
+          changed_files=$(echo ${merge_commit_data} | jq -c '[.files[].filename | select(test("(ya?ml$)") and (test("^.github") | not))]')
+          echo "::set-env name=changed_files::${changed_files}"
+      - name: Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          repository: ${{ env.repository }}
+          event-type: ${{ env.event_type }}
+          client-payload: |
+            {
+              "repository_full_name": "${{ github.event.repository.full_name }}",
+              "merge_commit_sha": "${{ github.event.pull_request.merge_commit_sha }}",
+              "pull_request_url": "${{ github.event.pull_request.html_url }}",
+              "changed_files": ${{ env.changed_files }}
+            }
