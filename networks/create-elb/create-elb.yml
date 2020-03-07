@@ -27,6 +27,7 @@ Metadata:
         Parameters:
           - ListenPort
           - ListenProtocol
+          - ListenCertificates
 
 # ---------------------------- Parameters
 Parameters:
@@ -112,6 +113,13 @@ Parameters:
       - TCP_UDP
       - TLS
       - UDP
+  ListenCertificates:
+    Description: The default SSL server certificate. You must provide exactly one certificate if the listener protocol is HTTPS or TLS. (Full ARN)
+    Type: String
+
+#---------------------------- Condition
+Conditions:
+  ListenerTypeCertificate: !Or [!Equals [HTTPS, !Ref ListenProtocol],!Equals [TLS, !Ref ListenProtocol]]
 
 #---------------------------- Resources
 Resources:
@@ -151,6 +159,9 @@ Resources:
       LoadBalancerArn: !Ref LoadBalancer
       Port: !Ref ListenPort
       Protocol: !Ref ListenProtocol
+      Certificates:
+        - CertificateArn: !If [ListenerTypeCertificate, !Ref ListenCertificates, !Ref "AWS::NoValue"]
+
 
 #---------------------------- Output
 Outputs:
