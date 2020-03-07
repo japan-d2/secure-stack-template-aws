@@ -37,7 +37,7 @@ Dir.glob('**/*.y*ml', base: template_dir)
   overridden = template_head.deep_merge!(overriding_object)
   dirname = FileUtils.mkdir_p(File.join(out_dir, File.dirname(template_file)))
   output_path = File.join(dirname, File.basename(template_file))
-  File.write(output_path, YAML.dump(overridden))
+  File.write(output_path, YAML.dump(overridden).gsub(/---\R/, ''))
   File.open(output_path, 'a') do |f|
     template.lines[separater_index + 1..-1].each { |line| f.print line }
   end
