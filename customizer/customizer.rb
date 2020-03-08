@@ -14,8 +14,12 @@ Dir.glob('**/*.y*ml', base: template_dir)
    .grep_v(%r{#{out_dir}/})
    .grep_v(template_override_config_file).each do |template_file|
   overriding_object = config.dig(*template_file.split('/'))
-  next if overriding_object.nil?
-
+  if overriding_object.nil?
+    dirname = FileUtils.mkdir_p(File.join(out_dir, File.dirname(template_file)))
+    output_path = File.join(dirname, File.basename(template_file))
+    FileUtils.copy(template_file, output_path)
+    next
+  end
   template = File.read(template_file)
   # YAML.load only loads first document separated by '---'
   # Splitting template body for its intrinsic functions not to be eliminated.
