@@ -54,7 +54,6 @@ Parameters:
     Type: String
     MaxLength: 256
 
-
 #---------------------------- Resources
 Resources:
   # Settings of CodePipeline
