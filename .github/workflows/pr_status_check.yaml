@@ -1,0 +1,27 @@
+name: Status check workflow for Pull Request
+on:
+  pull_request:
+    paths:
+      - '**/*.ya?ml'
+      - '!.github/**/*'
+      - '!customizer/**.ya?ml'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Get changed files
+        id: changed_files
+        run: |
+          git fetch origin ${GITHUB_BASE_REF}
+          changed_files="$(git diff origin/${GITHUB_BASE_REF}...${GITHUB_SHA} --name-only --diff-filter=AM -- '*.yaml' '*yml' ':(exclude).github/*' ':(exclude)customizer/*' | tr '\n' ' ')"
+          echo "::set-env name=changed_files::${changed_files}"
+      - name: Lint
+        uses: docker://ryof/cloudformation-lint-action:1.0.0
+        with:
+          args: ${{ env.changed_files }}

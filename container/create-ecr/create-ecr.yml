@@ -27,7 +27,7 @@ Resources:
       RepositoryPolicyText:
         Version: "2012-10-17"
         Statement:
-          - Sid: Deny getting images from the specific endpoint
+          - Sid: Deny getting images other than from specific endpoint
             Effect: Deny
             Principal:
               AWS: !Ref IamRoleArn
