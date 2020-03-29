@@ -59,6 +59,7 @@ Metadata:
           - CorporateNetworkCidr
           - CorporateInternetOutboundAddress
           - CorporateSSHSourceCidr
+          - CorporateSSHSourcePublicAddress
 
 # ---------------------------- Parameters
 Parameters:
@@ -284,6 +285,14 @@ Parameters:
 
   CorporateSSHSourceCidr:
     Description: "SSH Source CIDR for limiting SSH sources"
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
+
+  CorporateSSHSourcePublicAddress:
+    Description: "SSH Source IPv4 Address for limiting SSH sources (0.0.0.0/32)"
     Type: String
     MinLength: 9
     MaxLength: 18
@@ -973,6 +982,7 @@ Resources:
         CorpNetworkCidr: !Ref CorporateNetworkCidr
         CorporateInternetOutboundAddress: !Ref CorporateInternetOutboundAddress
         CorporateSSHSourceCidr: !Ref CorporateSSHSourceCidr
+        CorporateSSHSourcePublicAddress: !Ref CorporateSSHSourcePublicAddress
 
   #---------------------------- Resources - VPC Endpoint Service
   VPCEndpointServices:
