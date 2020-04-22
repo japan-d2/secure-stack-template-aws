@@ -22,6 +22,6 @@ jobs:
           changed_files="$(git diff origin/${GITHUB_BASE_REF}...${GITHUB_SHA} --name-only --diff-filter=AM -- '*.yaml' '*yml' ':(exclude).github/*' ':(exclude)customizer/*' | tr '\n' ' ')"
           echo "::set-env name=changed_files::${changed_files}"
       - name: Lint
-        uses: docker://ryof/cloudformation-lint-action:1.0.0
+        uses: ryof/cloudformation-lint-action@master
         with:
           args: ${{ env.changed_files }}
