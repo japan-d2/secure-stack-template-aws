@@ -102,7 +102,7 @@ Parameters:
   Stickiness:
     Description: ELB Target Enabling Stickiness
     Type: String
-    Default: false
+    Default: "false"
     AllowedValues:
       - "true"
       - "false"
@@ -410,11 +410,11 @@ Resources:
       IpAddressType: ipv4
       LoadBalancerAttributes:
         - Key: deletion_protection.enabled
-          Value: false
+          Value: "false"
         - Fn::If:
           - EnableAccesslLog
           - Key: access_logs.s3.enabled
-            Value: true
+            Value: "true"
           - !Ref AWS::NoValue
         - Fn::If:
           - EnableAccesslLog
@@ -434,7 +434,7 @@ Resources:
         - Fn::If:
           - LoadBalancerTypeIsApplication
           - Key: routing.http2.enabled
-            Value: true
+            Value: "true"
           - !Ref AWS::NoValue
         - Fn::If:
           - LoadBalancerTypeIsNetwork
