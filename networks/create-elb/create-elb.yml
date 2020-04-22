@@ -104,8 +104,8 @@ Parameters:
     Type: String
     Default: false
     AllowedValues:
-      - true
-      - false
+      - "true"
+      - "false"
   StickinessType:
     Description: ELB Target Stickiness Type
     Type: String
@@ -502,7 +502,7 @@ Resources:
                 Path: "/"
                 Port: "443"
                 Protocol: HTTPS
-                Status: "302"
+                StatusCode: "302"
               - !Ref "AWS::NoValue"
           FixedResponseConfig:
             Fn::If:
