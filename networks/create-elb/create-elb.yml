@@ -248,7 +248,7 @@ Conditions:
   AuthenticateIsCognito: !Equals ["Cognito", !Ref ListenerAuthentication]
   TargetProtocolTypeWeb: !Or [!Equals [HTTPS, !Ref TargetProtocol], !Equals [HTTP, !Ref TargetProtocol]]
   ListenerTypeTls: !Or [!Equals [HTTPS, !Ref ListenProtocol], !Equals [TLS, !Ref ListenProtocol]]
-  UsingCertificate: !Not [!Equals ["Not use certificate", !Ref UseCertificate]]
+  #UsingCertificate: !Not [!Equals ["Not use certificate", !Ref UseCertificate]]
   CreateCertificate: !Equals ["Create new certificate from ACM", !Ref UseCertificate]
 
 #---------------------------- Mappings
