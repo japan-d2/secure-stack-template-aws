@@ -246,8 +246,9 @@ Conditions:
   AuthenticateIsFixed: !Equals ["fixed-response", !Ref ListenerType]
   AuthenticateIsOIDC: !Equals ["OpenID Connect", !Ref ListenerAuthentication]
   AuthenticateIsCognito: !Equals ["Cognito", !Ref ListenerAuthentication]
-  ListenerTypeTls: !Or [!Equals [HTTPS, !Ref ListenProtocol],!Equals [TLS, !Ref ListenProtocol]]
-  UseCertificate: !Not [!Equals ["Not use certificate", !Ref UseCertificate]]
+  TargetProtocolTypeWeb: !Or [!Equals [HTTPS, !Ref TargetProtocol], !Equals [HTTP, !Ref TargetProtocol]]
+  ListenerTypeTls: !Or [!Equals [HTTPS, !Ref ListenProtocol], !Equals [TLS, !Ref ListenProtocol]]
+  UsingCertificate: !Not [!Equals ["Not use certificate", !Ref UseCertificate]]
   CreateCertificate: !Equals ["Create new certificate from ACM", !Ref UseCertificate]
 
 #---------------------------- Mappings
@@ -374,6 +375,11 @@ Resources:
       #HealthCheckThresholdCount: !FindInMap [HealthCheckValue, !Ref TargetType, threshold]
       #UnhealthyThresholdCount: !FindInMap [HealthCheckValue, !Ref TargetType, unhealthy]
       HealthCheckProtocol: !Ref TargetProtocol
+      HealthCheckPath:
+        Fn::If:
+          - TargetProtocolTypeWeb
+          - !Ref HealthCheckPath
+          - !Ref AWS::NoValue
       # Targets:
       #   Id:
       #   Port:
@@ -494,15 +500,15 @@ Resources:
               - AuthenticateIsRedirect
               - Host: !Ref RedirectHost
                 Path: "/"
-                Port: 443
+                Port: "443"
                 Protocol: HTTPS
-                Status: 302
+                Status: "302"
               - !Ref "AWS::NoValue"
           FixedResponseConfig:
             Fn::If:
               - AuthenticateIsFixed
               - ContentType: "text/plain"
-                StatusCode: 404
+                StatusCode: "404"
                 MessageBody: "Not found."
               - !Ref "AWS::NoValue"
       Port: !Ref ListenPort
