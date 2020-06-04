@@ -1,6 +1,84 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Fast Track - Elastic Load Balancer Provisioning Template
 
+# ---------------------------- Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Environment Settings"
+        Parameters:
+          - Environment
+          - NetworkName
+          - ElbName
+
+      - Label:
+          default: "Load Balancer Settings"
+        Parameters:
+          - ElbType
+          - ElbScheme
+          - ElbSubnetIds
+          - ElbSecurityGroupIds
+
+      - Label:
+          default: "Load Balancer Parameters"
+        Parameters:
+          - IdleTimeout
+          - CrossZoneSupport
+          - ElbAccessLogBucket
+
+      - Label:
+          default: "Target Group Settings"
+        Parameters:
+          - TargetType
+          - TargetProtocol
+          - TargetPort
+          - HealthCheckPath
+          - Stickiness
+          - StickinessType
+          - LBAlgorithm
+          # - ProxyProtocolSupport
+
+      - Label:
+          default: "Listener Settings"
+        Parameters:
+          - ListenerType
+          - ListenProtocol
+          - ListenPort
+          - UseCertificate
+          - AcmCertificateArn
+          - AcmDomainName
+          - AcmSubjectAlternative
+          - AcmValidationMethod
+          - AcmValidationDomainName
+          
+      - Label:
+          default: "Listener Authentication Setting"
+        Parameters:
+          - ListenerAuthentication
+
+      - Label:
+          default: "Listener Authentication Setting (OIDC)"
+        Parameters:
+          - OidcIssuer
+          - OidcClientId
+          - OidcClientSecret
+          - OidcAuthorizationEndpoint
+          - OidcTokenEndpoint
+          - OidcUserInfoEndpoint
+
+      - Label:
+          default: "Listener Authentication Setting (Cognito) - Not tested"
+        Parameters:
+          - CognitoArn
+          - CognitoClientId
+          - CognitoUserPoolDomain
+
+      - Label:
+          default: "Listener Action Settings"
+        Parameters:
+          - RedirectHost
+
 # ---------------------------- Parameters
 Parameters:
   # ---------------------------- Parameters - Environment
@@ -277,84 +355,6 @@ Mappings:
       SessionCookie: "ELBAuthCookie"
       SessionTimeout: 28800
       OIDCScope: "openid profile email"
-
-# ---------------------------- Metadata
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Environment Settings"
-        Parameters:
-          - Environment
-          - NetworkName
-          - ElbName
-
-      - Label:
-          default: "Load Balancer Settings"
-        Parameters:
-          - ElbType
-          - ElbScheme
-          - ElbSubnetIds
-          - ElbSecurityGroupIds
-
-      - Label:
-          default: "Load Balancer Parameters"
-        Parameters:
-          - IdleTimeout
-          - CrossZoneSupport
-          - ElbAccessLogBucket
-
-      - Label:
-          default: "Target Group Settings"
-        Parameters:
-          - TargetType
-          - TargetProtocol
-          - TargetPort
-          - HealthCheckPath
-          - Stickiness
-          - StickinessType
-          - LBAlgorithm
-          # - ProxyProtocolSupport
-
-      - Label:
-          default: "Listener Settings"
-        Parameters:
-          - ListenerType
-          - ListenProtocol
-          - ListenPort
-          - UseCertificate
-          - AcmCertificateArn
-          - AcmDomainName
-          - AcmSubjectAlternative
-          - AcmValidationMethod
-          - AcmValidationDomainName
-          
-      - Label:
-          default: "Listener Authentication Setting"
-        Parameters:
-          - ListenerAuthentication
-
-      - Label:
-          default: "Listener Authentication Setting (OIDC)"
-        Parameters:
-          - OidcIssuer
-          - OidcClientId
-          - OidcClientSecret
-          - OidcAuthorizationEndpoint
-          - OidcTokenEndpoint
-          - OidcUserInfoEndpoint
-
-      - Label:
-          default: "Listener Authentication Setting (Cognito) - Not tested"
-        Parameters:
-          - CognitoArn
-          - CognitoClientId
-          - CognitoUserPoolDomain
-
-      - Label:
-          default: "Listener Action Settings"
-        Parameters:
-          - RedirectHost
 
 #---------------------------- Resources
 Resources:
