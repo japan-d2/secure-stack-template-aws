@@ -51,6 +51,11 @@ Metadata:
           - PublicSubnetCidr3
           - PublicSubnetCidr4
           - PublicSubnetCidr5
+          - NatGatewayEIPAllocationId1
+          - NatGatewayEIPAllocationId2
+          - NatGatewayEIPAllocationId3
+          - NatGatewayEIPAllocationId4
+          - NatGatewayEIPAllocationId5
 
       - 
         Label: 
@@ -266,6 +271,36 @@ Parameters:
     AllowedPattern: "((\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\/(\\d{1,2}))?"
     ConstraintDescription: Please specify the IPv4 Network Address and Subnet Mask.
 
+  NatGatewayEIPAllocationId1:
+    Description: 'EIP Allocation ID for Public Subnet #1 (EIP is automatically created if not specified.)'
+    Type: String
+    Default: ''
+    AllowedPattern: "(eipalloc-[0-9a-f]+)?"
+
+  NatGatewayEIPAllocationId2:
+    Description: 'EIP Allocation ID for Public Subnet #2 (EIP is automatically created if not specified.)'
+    Type: String
+    Default: ''
+    AllowedPattern: "(eipalloc-[0-9a-f]+)?"
+
+  NatGatewayEIPAllocationId3:
+    Description: 'EIP Allocation ID for Public Subnet #3 (EIP is automatically created if not specified.)'
+    Type: String
+    Default: ''
+    AllowedPattern: "(eipalloc-[0-9a-f]+)?"
+
+  NatGatewayEIPAllocationId4:
+    Description: 'EIP Allocation ID for Public Subnet #4 (EIP is automatically created if not specified.)'
+    Type: String
+    Default: ''
+    AllowedPattern: "(eipalloc-[0-9a-f]+)?"
+
+  NatGatewayEIPAllocationId5:
+    Description: 'EIP Allocation ID for Public Subnet #5 (EIP is automatically created if not specified.)'
+    Type: String
+    Default: ''
+    AllowedPattern: "(eipalloc-[0-9a-f]+)?"
+
   # ---------------------------- Parameters - Corporate Network
   CorporateNetworkCidr:
     Description: "Corporate Network CIDR"
@@ -338,6 +373,11 @@ Conditions:
   CreateOfNatGateway3: !And [!Condition CreateOfSubnet3, !Condition CreateOfNatGateway]
   CreateOfNatGateway4: !And [!Condition CreateOfSubnet4, !Condition CreateOfNatGateway]
   CreateOfNatGateway5: !And [!Condition CreateOfSubnet5, !Condition CreateOfNatGateway]
+  CreateOfAutoEIP1: !And [!Condition CreateOfNatGateway1, !Equals [!Ref NatGatewayEIPAllocationId1, '']]
+  CreateOfAutoEIP2: !And [!Condition CreateOfNatGateway2, !Equals [!Ref NatGatewayEIPAllocationId2, '']]
+  CreateOfAutoEIP3: !And [!Condition CreateOfNatGateway3, !Equals [!Ref NatGatewayEIPAllocationId3, '']]
+  CreateOfAutoEIP4: !And [!Condition CreateOfNatGateway4, !Equals [!Ref NatGatewayEIPAllocationId4, '']]
+  CreateOfAutoEIP5: !And [!Condition CreateOfNatGateway5, !Equals [!Ref NatGatewayEIPAllocationId5, '']]
 
 #---------------------------- Resources
 Resources:
@@ -539,7 +579,11 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      AllocationId: !GetAtt VPCElasticIPNatGateway1.AllocationId
+      AllocationId:
+        Fn::If:
+          - CreateOfAutoEIP1
+          - !GetAtt VPCElasticIPNatGateway1.AllocationId
+          - !Ref NatGatewayEIPAllocationId1
       SubnetId: !GetAtt PublicVPCSubnet1.Outputs.SubnetId
       Tags:
         - 
@@ -550,7 +594,7 @@ Resources:
           Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-1"
   VPCElasticIPNatGateway1:
     Type: "AWS::EC2::EIP"
-    Condition: CreateOfNatGateway1
+    Condition: CreateOfAutoEIP1
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
@@ -561,7 +605,11 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      AllocationId: !GetAtt VPCElasticIPNatGateway2.AllocationId
+      AllocationId:
+        Fn::If:
+          - CreateOfAutoEIP2
+          - !GetAtt VPCElasticIPNatGateway2.AllocationId
+          - !Ref NatGatewayEIPAllocationId2
       SubnetId: !GetAtt PublicVPCSubnet2.Outputs.SubnetId
       Tags:
         - 
@@ -572,7 +620,7 @@ Resources:
           Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-2"
   VPCElasticIPNatGateway2:
     Type: "AWS::EC2::EIP"
-    Condition: CreateOfNatGateway2
+    Condition: CreateOfAutoEIP2
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
@@ -583,7 +631,11 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      AllocationId: !GetAtt VPCElasticIPNatGateway3.AllocationId
+      AllocationId:
+        Fn::If:
+          - CreateOfAutoEIP3
+          - !GetAtt VPCElasticIPNatGateway3.AllocationId
+          - !Ref NatGatewayEIPAllocationId3
       SubnetId: !GetAtt PublicVPCSubnet3.Outputs.SubnetId
       Tags:
         - 
@@ -594,7 +646,7 @@ Resources:
           Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-3"
   VPCElasticIPNatGateway3:
     Type: "AWS::EC2::EIP"
-    Condition: CreateOfNatGateway3
+    Condition: CreateOfAutoEIP3
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
@@ -605,7 +657,11 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      AllocationId: !GetAtt VPCElasticIPNatGateway4.AllocationId
+      AllocationId:
+        Fn::If:
+          - CreateOfAutoEIP4
+          - !GetAtt VPCElasticIPNatGateway4.AllocationId
+          - !Ref NatGatewayEIPAllocationId4
       SubnetId: !GetAtt PublicVPCSubnet4.Outputs.SubnetId
       Tags:
         - 
@@ -616,7 +672,7 @@ Resources:
           Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-4"
   VPCElasticIPNatGateway4:
     Type: "AWS::EC2::EIP"
-    Condition: CreateOfNatGateway4
+    Condition: CreateOfAutoEIP4
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
@@ -627,7 +683,11 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      AllocationId: !GetAtt VPCElasticIPNatGateway5.AllocationId
+      AllocationId:
+        Fn::If:
+          - CreateOfAutoEIP5
+          - !GetAtt VPCElasticIPNatGateway5.AllocationId
+          - !Ref NatGatewayEIPAllocationId5
       SubnetId: !GetAtt PublicVPCSubnet5.Outputs.SubnetId
       Tags:
         - 
@@ -638,7 +698,7 @@ Resources:
           Value: !Sub "${Environment}.${NetworkName}.vpc.natgw-5"
   VPCElasticIPNatGateway5:
     Type: "AWS::EC2::EIP"
-    Condition: CreateOfNatGateway5
+    Condition: CreateOfAutoEIP5
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
