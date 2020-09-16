@@ -66,6 +66,43 @@ Metadata:
 Conditions:
   IsPublicNetworkCidrBlank: !Equals [!Ref PublicNetworkCidr, '']
 
+#---------------------------- Mappings
+Mappings:
+  RegionalBucket:
+    us-east-1: 
+      CodeArtifact: "arn:aws:s3:::assets-193858265520-us-east-1"
+    us-east-2: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+    us-west-2: 
+      CodeArtifact: "arn:aws:s3:::assets-787052242323-us-west-2"
+    eu-west-1: 
+      CodeArtifact: "arn:aws:s3:::assets-438097961670-eu-west-1"
+    eu-north-1: 
+      CodeArtifact: "arn:aws:s3:::assets-611884512288-eu-north-1"
+    eu-central-1: 
+      CodeArtifact: "arn:aws:s3:::assets-769407342218-eu-central-1"
+    ap-northeast-1: 
+      CodeArtifact: "arn:aws:s3:::assets-660291247815-ap-northeast-1"
+    ap-southeast-1: 
+      CodeArtifact: "arn:aws:s3:::assets-421485864821-ap-southeast-1"
+    ap-southeast-2: 
+      CodeArtifact: "arn:aws:s3:::assets-860415559748-ap-southeast-2"
+    ap-south-1: 
+      CodeArtifact: "arn:aws:s3:::assets-681137435769-ap-south-1"
+    # VPC Endpoint Not provided region - It is dummy bucket ARN
+    ap-northeast-2: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+    ap-northeast-3: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+    ca-central-1: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+    eu-west-2: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+    eu-west-3: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+    sa-east-1: 
+      CodeArtifact: "arn:aws:s3:::assets-250872398865-us-east-2"
+
 #---------------------------- Resources
 Resources:
   #---------------------------- Resources - Gateway Endpoint
@@ -139,6 +176,21 @@ Resources:
               - "s3:GetObject"
               - "s3:PutObject"
             Resource: !Sub arn:aws:s3:::prod-${AWS::Region}-starport-layer-bucket/*
+          - Fn::If:
+              - IsPublicNetworkCidrBlank
+              - Sid: Allow access Code Artifact Package Asset Bucket
+                Effect: Allow
+                Principal:
+                  AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+                Action:
+                  - "s3:GetObject"
+                Resource:
+                  Fn::Join:
+                    - ''
+                    -
+                      - !FindInMap [RegionalBucket, !Ref AWS::Region, CodeArtifact]
+                      - "/*"
+              - !Ref AWS::NoValue
 
   EndpointDynamoDB:
     Type: AWS::EC2::VPCEndpoint
