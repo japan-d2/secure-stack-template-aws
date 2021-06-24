@@ -183,6 +183,16 @@ Resources:
               StringEquals:
                 s3:x-amz-server-side-encryption-aws-kms-key-id:
                   - !If [CreateStandardKMSKey, !GetAtt StandardEncryptionKey.Arn, !Ref KmsKeyArn]
+          - Sid: Deny-not-ssl-requests
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt StandardBucket.Arn
+              - !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
           - Fn::If:
               - RestrictVpcAccess
               - Sid: Deny-object-access-via-unspecified-vpce
