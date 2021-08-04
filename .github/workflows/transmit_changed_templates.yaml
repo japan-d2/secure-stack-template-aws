@@ -22,7 +22,7 @@ jobs:
                       -H "Content-Type: application/json" \
                       https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${{ github.event.pull_request.merge_commit_sha }})
           changed_files=$(echo ${merge_commit_data} | jq -c '[.files[].filename | select(test("(ya?ml$)") and (test("^.github") | not))]')
-          echo "::set-env name=changed_files::${changed_files}"
+          echo "changed_files=${changed_files}" >> $GITHUB_ENV
       - name: Dispatch
         uses: peter-evans/repository-dispatch@v1
         with:
