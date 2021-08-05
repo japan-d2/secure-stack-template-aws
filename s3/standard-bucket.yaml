@@ -126,7 +126,6 @@ Resources:
               - s3:GetMetricsConfiguration
               - s3:GetReplicationConfiguration
               - s3:ListBucket
-              - s3:ListBucketByTags
               - s3:ListBucketMultipartUploads
               - s3:ListBucketVersions
               - s3:PutAccelerateConfiguration
