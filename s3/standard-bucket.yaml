@@ -45,6 +45,9 @@ Parameters:
     Type: String
     AllowedPattern: "([a-z0-9][a-z0-9-]{1,61}[a-z0-9])?"
     Description: Input bucket name if saving access logs
+  AdministrativeRoleName:
+    Type: String
+    Description: Name of administrative role
 
 # ---------------------------- Conditions
 Conditions:
@@ -126,7 +129,6 @@ Resources:
               - s3:GetMetricsConfiguration
               - s3:GetReplicationConfiguration
               - s3:ListBucket
-              - s3:ListBucketByTags
               - s3:ListBucketMultipartUploads
               - s3:ListBucketVersions
               - s3:PutAccelerateConfiguration
@@ -148,17 +150,19 @@ Resources:
             Resource: !GetAtt StandardBucket.Arn
           - Sid: Deny-changing-bucket-permission
             Effect: Deny
-            NotPrincipal:
-              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/OrganizationAccountAccessRole
+            Principal: '*'
             Action:
               - s3:DeleteBucketPolicy
               - s3:PutBucketPolicy
               - s3:PutBucketPublicAccessBlock
             Resource: !GetAtt StandardBucket.Arn
+            Condition:
+              StringNotEquals: 
+                'aws:PrincipalARN': !Sub arn:aws:iam::${AWS::AccountId}:role/${AdministrativeRoleName}
           - Sid: Allow-oraganization-to-change-bucket-permission
             Effect: Allow
             Principal:
-              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/OrganizationAccountAccessRole
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/${AdministrativeRoleName}
             Action:
               - s3:DeleteBucketPolicy
               - s3:PutBucketPolicy
@@ -183,6 +187,16 @@ Resources:
               StringEquals:
                 s3:x-amz-server-side-encryption-aws-kms-key-id:
                   - !If [CreateStandardKMSKey, !GetAtt StandardEncryptionKey.Arn, !Ref KmsKeyArn]
+          - Sid: Deny-not-ssl-requests
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt StandardBucket.Arn
+              - !Join ['/', [!GetAtt StandardBucket.Arn, '*']]
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
           - Fn::If:
               - RestrictVpcAccess
               - Sid: Deny-object-access-via-unspecified-vpce
@@ -276,7 +290,7 @@ Resources:
             Effect: Allow
             Principal:
               AWS:
-                - !Sub arn:aws:iam::${AWS::AccountId}:role/OrganizationAccountAccessRole
+                - !Sub arn:aws:iam::${AWS::AccountId}:role/${AdministrativeRoleName}
             Action:
               - kms:Create*
               - kms:Describe*

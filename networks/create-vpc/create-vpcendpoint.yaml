@@ -45,9 +45,6 @@ Parameters:
     Description: VPC Subnet IDs
     Type: List<AWS::EC2::Subnet::Id>
 
-Conditions:
-  IsPublicNetworkCidrBlank: !Equals [!Ref PublicNetworkCidr, '']
-
 # ---------------------------- Metadata
 Metadata: 
   AWS::CloudFormation::Interface: 
@@ -65,6 +62,9 @@ Metadata:
           - VPCID
           - RouteTableIDs
           - SubnetIDs
+
+Conditions:
+  IsPublicNetworkCidrBlank: !Equals [!Ref PublicNetworkCidr, '']
 
 #---------------------------- Resources
 Resources:

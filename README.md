@@ -34,7 +34,9 @@ AWS-SSTのテンプレートを実行するために必要な権限は、可能�
 
 ## Documentation
 
-TBD.
+### Service Catalog での利用
+当テンプレートをService Catalogで利用する際に、利用環境に合わせたデフォルト値やメタデータを利用するためのツールを提供しています。  
+詳細は[こちら](customizer/README.md)をご覧ください。
 
 ## Writing Guide
 

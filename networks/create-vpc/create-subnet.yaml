@@ -1,6 +1,33 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Fast Track - VPC Subnet Creation Template
 
+# ---------------------------- Metadata
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Environment Settings"
+        Parameters: 
+          - Environment
+          - NetworkName
+          - SubnetName
+
+      - 
+        Label: 
+          default: "VPC Settings"
+        Parameters: 
+          - VPCID
+          - SubnetNetworkCidrBlock
+          - SubnetNetworkCidrBlockIPv6
+          - SubnetAZ
+
+      - 
+        Label: 
+          default: "VPC Support Services"
+        Parameters:
+          - EnableIPv6Subnet
+
 # ---------------------------- Parameters
 Parameters:
   # ---------------------------- Parameters - Environment
@@ -63,33 +90,6 @@ Parameters:
 # ---------------------------- Conditions
 Conditions:
   CreateOfIPv6Subnet: !Equals [!Ref EnableIPv6Subnet, Yes]
-
-# ---------------------------- Metadata
-Metadata: 
-  AWS::CloudFormation::Interface: 
-    ParameterGroups: 
-      - 
-        Label: 
-          default: "Environment Settings"
-        Parameters: 
-          - Environment
-          - NetworkName
-          - SubnetName
-
-      - 
-        Label: 
-          default: "VPC Settings"
-        Parameters: 
-          - VPCID
-          - SubnetNetworkCidrBlock
-          - SubnetNetworkCidrBlockIPv6
-          - SubnetAZ
-
-      - 
-        Label: 
-          default: "VPC Support Services"
-        Parameters:
-          - EnableIPv6Subnet
 
 #---------------------------- Resources
 Resources:

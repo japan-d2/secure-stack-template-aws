@@ -6,76 +6,158 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: "Environment Settings"
+        Parameters:
+          - Environment
+          - NetworkName
+          - ElbName
+
+      - Label:
           default: "Load Balancer Settings"
         Parameters:
-          - ElbName
-          - ElbScheme
-          - ElbSecurityGroupId
-          - ElbSubnetId1
-          - ElbSubnetId2
           - ElbType
+          - ElbScheme
+          - ElbSubnetIds
+          - ElbSecurityGroupIds
+
+      - Label:
+          default: "Load Balancer Parameters"
+        Parameters:
+          - IdleTimeout
+          - CrossZoneSupport
+          - ElbAccessLogBucket
+
       - Label:
           default: "Target Group Settings"
         Parameters:
-          - VpcId
-          - TargetGroupName
-          - TargetPort
-          - TargetProtocol
           - TargetType
+          - TargetProtocol
+          - TargetPort
+          - HealthCheckPath
+          - Stickiness
+          - StickinessType
+          - LBAlgorithm
+          # - ProxyProtocolSupport
+
       - Label:
           default: "Listener Settings"
         Parameters:
-          - ListenPort
+          - ListenerType
           - ListenProtocol
+          - ListenPort
+          - UseCertificate
+          - AcmCertificateArn
+          - AcmDomainName
+          - AcmSubjectAlternative
+          - AcmValidationMethod
+          - AcmValidationDomainName
+          
+      - Label:
+          default: "Listener Authentication Setting"
+        Parameters:
+          - ListenerAuthentication
+
+      - Label:
+          default: "Listener Authentication Setting (OIDC)"
+        Parameters:
+          - OidcIssuer
+          - OidcClientId
+          - OidcClientSecret
+          - OidcAuthorizationEndpoint
+          - OidcTokenEndpoint
+          - OidcUserInfoEndpoint
+
+      - Label:
+          default: "Listener Authentication Setting (Cognito) - Not tested"
+        Parameters:
+          - CognitoArn
+          - CognitoClientId
+          - CognitoUserPoolDomain
+
+      - Label:
+          default: "Listener Action Settings"
+        Parameters:
+          - RedirectHost
 
 # ---------------------------- Parameters
 Parameters:
-  # ---------------------------- Parameters - Load Balancer
-  ElbName:
-    Description: The name of the load balancer.
+  # ---------------------------- Parameters - Environment
+  Environment:
+    Description: Environment Type
     Type: String
-    MaxLength: 32
-    ConstraintDescription: This name must be unique per region per account, can have a maximum of 32 characters, must contain only alphanumeric characters or hyphens, must not begin or end with a hyphen, and must not begin with "internal-".
-  ElbScheme:
-    Description: The scheme of the load balancer.(internal or internet-facing)
-    Type: String
-    Default: internet-facing
     AllowedValues:
-      - internet-facing
-      - internal
-  ElbSecurityGroupId:
-    Type: AWS::EC2::SecurityGroup::Id
-  ElbSubnetId1:
-    Description : The IDs of the subnets.
-    Type : AWS::EC2::Subnet::Id
-  ElbSubnetId2:
-    Description : The IDs of the subnets.
-    Type : AWS::EC2::Subnet::Id
+      - prod
+      - mirror
+      - stage
+      - test
+      - develop
+      - eval
+      - onetime
+  NetworkName:
+    Description: VPC Network Name
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "[a-zA-Z0-9\\-\\:]+"
+  ElbName:
+    Description: ELB name
+    Type: String
+    MinLength: 1
+    MaxLength: 28
+    AllowedPattern: "^(?!internal-)([\\p{Alnum}\\-])+$"
+
+  # ---------------------------- Parameters - ELB Settings
   ElbType:
-    Description: The type of load balancer.
+    Description: ELB Type (NLB is not implemented)
     Type: String
     Default: application
     AllowedValues:
       - application
       - network
-
-  # ---------------------------- Parameters - Target Group
-  VpcId:
-    Description : The identifier of the virtual private cloud (VPC).
-    Type: AWS::EC2::VPC::Id
-  TargetGroupName:
-    Description : The name of the target group.
+  ElbScheme:
+    Description: ELB Scheme as Internet facing or Internal
     Type: String
-    MaxLength: 32
-    ConstraintDescription: This name must be unique per region per account, can have a maximum of 32 characters, must contain only alphanumeric characters or hyphens, and must not begin or end with a hyphen.
-  TargetPort:
-    Description: The port on which the targets receive traffic.
+    Default: internet-facing
+    AllowedValues:
+      - internet-facing
+      - internal
+  ElbSubnetIds:
+    Description: Deploying ELB endpoint on the subnets.
+    Type: List<AWS::EC2::Subnet::Id>
+
+  ElbSecurityGroupIds:
+    Description: ELB Security Group IDs
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    
+  # ---------------------------- Parameters - ELB Parameters
+  IdleTimeout:
+    Description: ELB Idle Timeout
     Type: Number
     MinValue: 1
-    MaxValue: 65535
-    Default: 443
+    MaxValue: 4000
+    Default: 60
+  CrossZoneSupport:
+    Description: ELB Cross Zone Load Balancing Support
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  ElbAccessLogBucket:
+    Description: ELB Access Log Bucket Name
+    Type: String
+    
+  # ---------------------------- Parameters - ELB TargetGroup Settings
+  TargetType:
+    Description: ELB Target Types
+    Type: String
+    Default: instance
+    AllowedValues:
+      - instance
+      - ip
+      - lambda
   TargetProtocol:
-    Description : The protocol to use for routing traffic to the targets.
+    Description: ELB Target Protocol
     Type: String
     Default: HTTPS
     AllowedValues:
@@ -85,22 +167,54 @@ Parameters:
       - TCP_UDP
       - TLS
       - UDP
-  TargetType:
-    Description: The type of target that you must specify when registering targets with this target group.
-    Type: String
-    Default: instance
-    AllowedValues:
-      - instance
-      - ip
-      - lambda
-
-  # ---------------------------- Parameters - Listener
-  ListenPort:
-    Description: The port on which the targets receive traffic.
+  TargetPort:
+    Description: ELB Target Port
     Type: Number
+    Default: 443
     MinValue: 1
     MaxValue: 65535
-    Default: 443
+  HealthCheckPath:
+    Description: Healthcheck Target Path
+    Type: String
+    Default: "/"
+  Stickiness:
+    Description: ELB Target Enabling Stickiness
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+  StickinessType:
+    Description: ELB Target Stickiness Type
+    Type: String
+    Default: lb_cookie
+    AllowedValues:
+      - lb_cookie
+      - source_ip
+  LBAlgorithm:
+    Description: Load balancing algorithm type
+    Type: String
+    Default: round_robin
+    AllowedValues:
+      - round_robin
+      - least_outstanding_requests
+  # ProxyProtocolSupport:
+  #   Description: Support Proxyu Protocol version 2
+  #   Type: String
+  #   Default: false
+  #   AllowedValues:
+  #     - true
+  #     - false
+
+  # ---------------------------- Parameters - ELB Listener Settings
+  ListenerType:
+    Description: ListenerType
+    Type: String
+    Default: forward
+    AllowedValues:
+      - forward
+      - redirect
+      - fixed-response
   ListenProtocol:
     Description : The protocol to use for routing traffic to the targets.
     Type: String
@@ -112,51 +226,357 @@ Parameters:
       - TCP_UDP
       - TLS
       - UDP
+  ListenPort:
+    Description: The port on which the targets receive traffic.
+    Type: Number
+    MinValue: 1
+    MaxValue: 65535
+    Default: 443
+  UseCertificate:
+    Description: Choose Certificate for HTTPS or TLS Listener Type
+    Type: String
+    Default: "Not use certificate"
+    AllowedValues:
+      - "Not use certificate"
+      - "Use exists certificate"
+      - "Create new certificate from ACM"
+  AcmCertificateArn:
+    Description: The default SSL server certificate. You must provide exactly one certificate if the listener protocol is HTTPS or TLS. (Full ARN)
+    Type: String
+    AllowedPattern: "((arn:aws:acm:).+)?"
+  AcmDomainName:
+    Description: Domain name for new certificate
+    Type: String
+    AllowedPattern: "(^(\\*\\.)?(((?!\\-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\\.)+((?!\\-)[A-Za-z0-9\\-]{1,62}[A-Za-z0-9])$)?"
+  AcmSubjectAlternative:
+    Description: Certificate subject alternative names
+    Type: List<String>
+  AcmValidationMethod:
+    Description: Method of domain validation
+    Type: String
+    Default: DNS
+    AllowedValues:
+      - DNS
+      - EMAIL
+  AcmValidationDomainName:
+    Description: "The domain name to which you want ACM to send validation emails. This domain name is the suffix of the email addresses that you want ACM to use."
+    Type: String
+    AllowedPattern: "(^(\\*\\.)?(((?!\\-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\\.)+((?!\\-)[A-Za-z0-9\\-]{1,62}[A-Za-z0-9])$)?"
+  
+  # ---------------------------- Parameters - ELB Listener Settings for Authentication Action
+  ListenerAuthentication:
+    Description: Listener Authentication Action
+    Type: String
+    Default: "No authentication"
+    AllowedValues:
+      - "No authentication"
+      - "Cognito"
+      - "OpenID Connect"
+
+  # ---------------------------- Parameters - ELB Listener Settings for OIDC Authentication
+  OidcIssuer:
+    Description: "The OIDC issuer identifier of the IdP. This must be a full URL, including the HTTPS protocol, the domain, and the path."
+    Type: String
+    AllowedPattern: "((https\\:\\/\\/).+)?"
+  OidcClientId:
+    Description: "The OAuth 2.0 client identifier."
+    Type: String
+  OidcClientSecret:
+    Description: "The OAuth 2.0 client secret. This parameter is required if you are creating a rule."
+    Type: String
+    NoEcho: true
+  OidcAuthorizationEndpoint:
+    Description: "The authorization endpoint of the IdP. This must be a full URL, including the HTTPS protocol, the domain, and the path."
+    Type: String
+    AllowedPattern: "((https\\:\\/\\/).+)?"
+  OidcTokenEndpoint:
+    Description: "The token endpoint of the IdP. This must be a full URL, including the HTTPS protocol, the domain, and the path."
+    Type: String
+    AllowedPattern: "((https\\:\\/\\/).+)?"
+  OidcUserInfoEndpoint:
+    Description: "The user info endpoint of the IdP. This must be a full URL, including the HTTPS protocol, the domain, and the path."
+    Type: String
+    AllowedPattern: "((https\\:\\/\\/).+)?"
+
+  # ---------------------------- Parameters - ELB Listener Settings for Cognito Authenticationngs for Cognito Authentication
+  CognitoArn:
+    Description: "The Amazon Resource Name (ARN) of the Amazon Cognito user pool."
+    Type: String
+  CognitoClientId:
+    Description: "The ID of the Amazon Cognito user pool client."
+    Type: String
+  CognitoUserPoolDomain:
+    Description: "The domain prefix or fully-qualified domain name of the Amazon Cognito user pool."
+    Type: String
+
+  # ---------------------------- Parameters - ELB Listener Settings for Redirect
+  RedirectHost:
+    Description: Redirect Action Target Host
+    Type: String
+
+#---------------------------- Condition
+Conditions:
+  LoadBalancerTypeIsApplication: !Equals ["application", !Ref ElbType]
+  LoadBalancerTypeIsNetwork: !Equals ["network", !Ref ElbType]
+  EnableAccesslLog: !Not [!Equals ["", !Ref ElbAccessLogBucket]]
+  AuthenticateIsForward: !Equals ["forward", !Ref ListenerType]
+  AuthenticateIsRedirect: !Equals ["redirect", !Ref ListenerType]
+  AuthenticateIsFixed: !Equals ["fixed-response", !Ref ListenerType]
+  AuthenticateIsOIDC: !Equals ["OpenID Connect", !Ref ListenerAuthentication]
+  AuthenticateIsCognito: !Equals ["Cognito", !Ref ListenerAuthentication]
+  TargetProtocolTypeWeb: !Or [!Equals [HTTPS, !Ref TargetProtocol], !Equals [HTTP, !Ref TargetProtocol]]
+  ListenerTypeTls: !Or [!Equals [HTTPS, !Ref ListenProtocol], !Equals [TLS, !Ref ListenProtocol]]
+  #UsingCertificate: !Not [!Equals ["Not use certificate", !Ref UseCertificate]]
+  CreateCertificate: !Equals ["Create new certificate from ACM", !Ref UseCertificate]
+
+#---------------------------- Mappings
+Mappings:
+  HealthCheckValues:
+    ip:
+      interval: 30
+      timeout: 5
+      threshold: 5
+      unhealthy: 2
+    instance:
+      interval: 30
+      timeout: 5
+      threshold: 5
+      unhealthy: 2
+    lambda:
+      interval: 35
+      timeout: 30
+      threshold: 5
+      unhealthy: 2
+  ListenerSecurity:
+    Policy:
+      latest: "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
+  ListenerConfig:
+    Auth:
+      SessionCookie: "ELBAuthCookie"
+      SessionTimeout: 28800
+      OIDCScope: "openid profile email"
 
 #---------------------------- Resources
 Resources:
-  #---------------------------- Resources - Load Balancer
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: !Ref ElbName
-      Scheme: !Ref ElbScheme
-      SecurityGroups:
-        - !Ref ElbSecurityGroupId
-      Subnets:
-        - !Ref ElbSubnetId1
-        - !Ref ElbSubnetId2
-      Type: !Ref ElbType
-      Tags:
-        - Key: Name
-          Value: !Ref ElbName
-
   #---------------------------- Resources - Target Group
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !Ref VpcId
-      Name: !Ref TargetGroupName
-      Port: !Ref TargetPort
-      Protocol: !Ref TargetProtocol
+      Name: !Sub "${ElbName}-tg"
       TargetType: !Ref TargetType
+      Protocol: !Ref TargetProtocol
+      Port: !Ref TargetPort
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${Environment}:${NetworkName}:vpc:id"
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: !FindInMap [HealthCheckValues, !Ref TargetType, interval]
+      #HealthCheckTimeoutSeconds: !FindInMap [HealthCheckValue, !Ref TargetType, timeout]
+      #HealthCheckThresholdCount: !FindInMap [HealthCheckValue, !Ref TargetType, threshold]
+      #UnhealthyThresholdCount: !FindInMap [HealthCheckValue, !Ref TargetType, unhealthy]
+      HealthCheckProtocol: !Ref TargetProtocol
+      HealthCheckPath:
+        Fn::If:
+          - TargetProtocolTypeWeb
+          - !Ref HealthCheckPath
+          - !Ref AWS::NoValue
+      # Targets:
+      #   Id:
+      #   Port:
+      #   AvailabilityZone: all
+      TargetGroupAttributes:
+        - Key: "stickiness.enabled"
+          Value: !Ref Stickiness
+        - Key: "stickiness.type"
+          Value: !Ref StickinessType
+        - Key: "load_balancing.algorithm.type"
+          Value: !Ref LBAlgorithm
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: "86400"
+        # - Key: "proxy_protocol_v2.enabled"
+        #   Value: !Ref ProxyProtocolSupport
+      Tags:
+        -
+          Key: Name
+          Value: !Sub "${Environment}.${ElbName}"
+
+  #---------------------------- Resources - ELB Resource
+  ELB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DeletionPolicy: Delete
+    Properties:
+      Name: !Ref ElbName
+      Type: !Ref ElbType
+      IpAddressType: ipv4
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+        - Fn::If:
+          - EnableAccesslLog
+          - Key: access_logs.s3.enabled
+            Value: "true"
+          - !Ref AWS::NoValue
+        - Fn::If:
+          - EnableAccesslLog
+          - Key: access_logs.s3.bucket
+            Value: !Ref ElbAccessLogBucket
+          - !Ref AWS::NoValue
+        - Fn::If:
+          - EnableAccesslLog
+          - Key: access_logs.s3.prefix
+            Value: !Sub "${AWS::AccountId}/${Environment}.${ElbName}/"
+          - !Ref AWS::NoValue
+        - Fn::If:
+          - LoadBalancerTypeIsApplication
+          - Key: idle_timeout.timeout_seconds
+            Value: !Ref IdleTimeout
+          - !Ref AWS::NoValue
+        - Fn::If:
+          - LoadBalancerTypeIsApplication
+          - Key: routing.http2.enabled
+            Value: "true"
+          - !Ref AWS::NoValue
+        - Fn::If:
+          - LoadBalancerTypeIsNetwork
+          - Key: load_balancing.cross_zone.enabled
+            Value: !Ref CrossZoneSupport
+          - !Ref AWS::NoValue
+      Scheme: !Ref ElbScheme
+      SecurityGroups: !Ref ElbSecurityGroupIds
+      #SubnetMappings:
+      Subnets: !Ref ElbSubnetIds
+      Tags:
+        -
+          Key: Name
+          Value: !Sub  "${Environment}.${ElbName}"
 
   #---------------------------- Resources - Listener
-  Listener:
+  ElbListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
+      LoadBalancerArn: !Ref ELB
       DefaultActions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: forward
-      LoadBalancerArn: !Ref LoadBalancer
+        - Fn::If:
+          - AuthenticateIsCognito
+          - Type: "authenticate-cognito"
+            Order: 10
+            AuthenticateCognitoConfig:
+              UserPoolArn: !Ref CognitoArn
+              UserPoolClientId: !Ref CognitoClientId
+              UserPoolDomain: !Ref CognitoUserPoolDomain
+              OnUnauthenticatedRequest: authenticate
+              Scope: "openid profile email"
+              SessionCookieName: !FindInMap [ListenerConfig, Auth, SessionCookie]
+              SessionTimeout: !FindInMap [ListenerConfig, Auth, SessionTimeout]
+          - !Ref "AWS::NoValue"
+        - Fn::If:
+          - AuthenticateIsOIDC
+          - Type: "authenticate-oidc"
+            Order: 10
+            AuthenticateOidcConfig:
+              Issuer: !Ref OidcIssuer
+              ClientId: !Ref OidcClientId
+              ClientSecret: !Ref OidcClientSecret
+              AuthorizationEndpoint: !Ref OidcAuthorizationEndpoint
+              TokenEndpoint: !Ref OidcTokenEndpoint
+              UserInfoEndpoint:  !Ref OidcUserInfoEndpoint
+              OnUnauthenticatedRequest: authenticate
+              Scope: !FindInMap [ListenerConfig, Auth, OIDCScope]
+              SessionCookieName: !FindInMap [ListenerConfig, Auth, SessionCookie]
+              SessionTimeout: !FindInMap [ListenerConfig, Auth, SessionTimeout]
+          - !Ref "AWS::NoValue"
+        - Type: !Ref ListenerType
+          Order: 50
+          ForwardConfig:
+            Fn::If:
+              - AuthenticateIsForward
+              - TargetGroups:
+                  - TargetGroupArn: !Ref TargetGroup
+                    Weight: 100
+                  # TargetGroupStickinessConfig:
+              - !Ref "AWS::NoValue"
+          RedirectConfig:
+            Fn::If:
+              - AuthenticateIsRedirect
+              - Host: !Ref RedirectHost
+                Path: "/"
+                Port: "443"
+                Protocol: HTTPS
+                StatusCode: "302"
+              - !Ref "AWS::NoValue"
+          FixedResponseConfig:
+            Fn::If:
+              - AuthenticateIsFixed
+              - ContentType: "text/plain"
+                StatusCode: "404"
+                MessageBody: "Not found."
+              - !Ref "AWS::NoValue"
       Port: !Ref ListenPort
       Protocol: !Ref ListenProtocol
+      SslPolicy:
+        Fn::If:
+          - ListenerTypeTls
+          - !FindInMap [ListenerSecurity, Policy, latest]
+          - !Ref "AWS::NoValue"
+      Certificates:
+        Fn::If:
+          - ListenerTypeTls
+          - Fn::If:
+            - CreateCertificate
+            - - CertificateArn: !Ref AcmElbCertificate
+            - - CertificateArn: !Ref AcmCertificateArn
+          - - !Ref AWS::NoValue
+
+  #---------------------------- Resources - Certificate
+  AcmElbCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: CreateCertificate
+    Properties:
+      DomainName: !Ref AcmDomainName
+      SubjectAlternativeNames: !Ref AcmSubjectAlternative
+      ValidationMethod: !Ref AcmValidationMethod
+      DomainValidationOptions:
+        - DomainName: !Ref AcmDomainName
+          ValidationDomain: !Ref AcmValidationDomainName
+      Tags:
+        - 
+          Key: Name
+          Value: !Sub  "${Environment}.${ElbName}.cert"
 
 #---------------------------- Output
 Outputs:
   LoadBalancerArn:
-    Description: Load Balancer ARN
-    Value: !Ref LoadBalancer
-  TargetGroupArn:
-    Description: Target Group ARN
+    Description: Elastic Load Balancer ARN
+    Value: !Ref ELB
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:Arn"
+  LoadBalancerHostname:
+    Description: Elastic Load Balancer DNS Hostname
+    Value: !GetAtt ELB.DNSName
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:hostname"
+  LoadBalancerHostedZoneId:
+    Description: Elastic Load Balancer Route 53 Hosted Zone ID
+    Value: !GetAtt ELB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:hostedzone:id"
+  LoadBalancerName:
+    Description: Elastic Load Balancer Name
+    Value: !GetAtt ELB.LoadBalancerName
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:name"
+  LoadBalancerFullName:
+    Description: Elastic Load Balancer Full Name
+    Value: !GetAtt ELB.LoadBalancerFullName
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:name:full"
+  LoadBalancerTargetGroupArn:
+    Description: Elastic Load Balancer Target Group Arn
     Value: !Ref TargetGroup
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:target:arn"
+  LoadBalancerListenerArn:
+    Description: Elastic Load Balancer Listener Arn
+    Value: !Ref ElbListener
+    Export:
+      Name: !Sub "${Environment}:elb:${ElbName}:listner:arn"
