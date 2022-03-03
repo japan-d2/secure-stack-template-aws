@@ -71,6 +71,7 @@ Resources:
           - ServerSideEncryptionByDefault:
               KMSMasterKeyID: !If [CreateStandardKMSKey, !GetAtt StandardEncryptionKey.Arn, !Ref KmsKeyArn]
               SSEAlgorithm: aws:kms
+            BucketKeyEnabled: true
       BucketName: !Ref BucketName
       LifecycleConfiguration:
         Fn::If:
