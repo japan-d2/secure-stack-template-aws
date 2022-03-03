@@ -99,7 +99,7 @@ Resources:
             Resource: "*"
             Condition:
               StringEquals:
-                PrincipalOrgID:
+                aws:PrincipalOrgID:
                   - !Ref OrganizationId
           - Sid: Restrict Access for Outside S3 Buckets
             Effect: Allow
@@ -112,7 +112,7 @@ Resources:
             Resource: "*"
             Condition:
               StringNotEquals:
-                PrincipalOrgID:
+                aws:PrincipalOrgID:
                   - !Ref OrganizationId
           - Sid: Allow PutObject Only If Using Inner-account-CMK
             Effect: Allow
