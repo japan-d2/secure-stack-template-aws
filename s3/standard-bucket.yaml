@@ -66,7 +66,6 @@ Resources:
   StandardBucket:
     Type: AWS::S3::Bucket
     Properties:
-      AccessControl: BucketOwnerFullControl
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -93,6 +92,9 @@ Resources:
         RestrictPublicBuckets: true
       VersioningConfiguration:
         Status: !If [EnableVersioning, Enabled, Suspended]
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
   StandardBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Condition: CreateStandardBucketPolicy
