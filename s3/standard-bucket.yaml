@@ -77,7 +77,8 @@ Resources:
           - CreateLifecycleConfiguration
           - Rules:
               - Status: Enabled
-                NoncurrentVersionExpirationInDays: !Ref NoncurrentVersionExpirationInDays
+                NoncurrentVersionExpiration:
+                  NoncurrentDays: !Ref NoncurrentVersionExpirationInDays
           - !Ref AWS::NoValue
       LoggingConfiguration:
         Fn::If:
