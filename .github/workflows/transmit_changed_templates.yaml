@@ -14,7 +14,7 @@ env:
 jobs:
   Transmit:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Filter changed files
         run: |
